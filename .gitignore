@@ -1,0 +1,4 @@
+.vscode/*
+/records/records.db
+/records/creds.json
+temp.py

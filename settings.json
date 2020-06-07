@@ -1,0 +1,26 @@
+{
+    "symbols": ["BTC-USD", "ETH-USD", "XRP-USD"],
+    "thunder": {
+        "interval": "5m",
+        "pinch-interval": "3m",
+        "period": "5d",
+        "long":{
+            "interval": "1d", 
+        "period": "6mo",
+        "range": "6mo"
+        }
+    },
+    "freeze": {
+        "window": "8h",
+        "colors": {
+            "figure-background": "#778899",
+            "background": "#283D3B",
+            "high": "#197278",
+            "low": "#C44536",
+            "volume": "#2E8B57",
+            "tendency": "#EDDDD4"
+        }
+        
+    }
+
+}
