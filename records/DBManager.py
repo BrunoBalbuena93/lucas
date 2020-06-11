@@ -1,8 +1,10 @@
 import sqlite3
 import datetime as dt
 from os.path import isfile
-
 from pandas import DataFrame, concat
+from requests import get
+from json import loads, load
+
 """
 Nombres de las tablas:
 wCoin [id, coin]: Nombre de monedas trabajadas
@@ -10,6 +12,7 @@ wTrades [id, initial, final]: Tipo de transacción de moneda
 trades [id, type(wTrade), initial, final, cost, date,]
 balances [coin, amount, valuation]
 """
+
 
 class DataManager():
     def __init__(self, name='records/records.db', test=False):
@@ -41,20 +44,27 @@ class DataManager():
         # Primero obtenemos las monedas
         init_coin = self.getCoin(trade['init'][1])
         final_coin = self.getCoin(trade['final'][1])
-        
+        # Obtenemos los symbols para requests que puedan ser necesarias
+        symbols = self.getSymbol(trade['init'][1], trade['final'][1])
         # Se obtiene el tipo de trade
         tradeType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={}'.format(init_coin, final_coin))[0][0]
 
-        # Se calcula el valor de cambio
         money = [trade['init'][0], trade['final'][0]]
+        # Se obtiene la valuacion
+        if len(symbols) == 1:
+            # MXN <=> coin
+            valuation = getValuation(symbols[0])
+        else:
+            # coin1 <=> coin2
+            raise NotImplementedError
         tradeValue = trade['final'][0] / trade['init'][0]
 
         # Se agrega el timestamp
         date = dt.datetime.now().isoformat()
 
         # Se escribe en la base
-        command = """INSERT INTO trades (type, init, final, value, date) VALUES ({}, {}, {}, {}, \"{}\");""".format(tradeType, money[0], money[1], tradeValue, date)
-        self.write(command)  
+        command = "INSERT INTO trades (type, init, final, coinusd, mxnusd, date) VALUES (?, ?, ?, ?, ?, ?);"
+        self.write(command, params=[tradeType, money[0], money[1], valuation[1], valuation[0], date])  
         print('Trade almacenado: {} {} => {} {}'.format(trade['init'][0], trade['init'][1], trade['final'][0], trade['final'][1]))
         update = {'add': [final_coin, money[1]]}  
         # Actualizando el valor de balances    
@@ -76,8 +86,8 @@ class DataManager():
             isInput = 1 if fund['isInput'] == True else -1
         # Agregando fecha
         date = dt.datetime.now().isoformat()
-        command = """INSERT INTO spei (amount, input, date) VALUES ({}, {}, \"{}\");""".format(entry, isInput, date)
-        self.write(command)
+        command = "INSERT INTO spei (amount, input, date) VALUES (?, ?, ?);"
+        self.write(command, params=[entry, isInput, date])
         print('Fondos almacenados correctamente')
         self.updateBalance({'init': [entry, 'mxn']})
 
@@ -85,9 +95,9 @@ class DataManager():
     def addCoin(self, coin):
         # Se recogen las monedas existentes
         # Se agrega moneda
-        coin_add = "INSERT INTO wCoin (coin) VALUES (\"{}\")".format(coin)
-        constrain = """SELECT id FROM wCoin WHERE coin = \"{}\";""".format(coin)
-        if(self.uniqueWrite(coin_add, constrain)):
+        coin_add = "INSERT INTO wCoin (coin) VALUES (?)"
+        constrain = """SELECT id FROM wCoin WHERE coin = ?;"""
+        if(self.uniqueWrite(coin_add, constrain, paramsCommand=[coin], paramsConstrain=[coin])):
             print('Moneda almacenada')
         coins = self.getCoins()
         new_coin_id = self.getCoin(coin)
@@ -96,14 +106,14 @@ class DataManager():
         # Se agregan los tipo de trade. Debe existir el que new_coin -> [coins] y [coins] -> new_coin
         for coin in coins:
             # Transaccion nueva a previas
-            constrain = 'SELECT id from wTrade WHERE initial={} AND final={};'.format(coin, new_coin_id)
-            add_trade = 'INSERT INTO wTrade (initial, final) VALUES ({}, {});'.format(coin, new_coin_id)
-            if(self.uniqueWrite(add_trade, constrain)):
+            constrain = 'SELECT id from wTrade WHERE initial=? AND final=?;'.format()
+            add_trade = 'INSERT INTO wTrade (initial, final) VALUES (?, ?);'.format()
+            if(self.uniqueWrite(add_trade, constrain, paramsCommand=[coin, new_coin_id], paramsConstrain=[coin, new_coin_id])):
                 print('Transacción {} => {} creada'.format(coin, new_coin_id))
             # Transaccion previas a nueva
-            constrain = 'SELECT id from wTrade WHERE initial={} AND final={};'.format(new_coin_id, coin)
-            add_trade = 'INSERT INTO wTrade (initial, final) VALUES ({}, {});'.format(new_coin_id, coin)
-            if(self.uniqueWrite(add_trade, constrain)):
+            constrain = 'SELECT id from wTrade WHERE initial=? AND final=?;'.format()
+            add_trade = 'INSERT INTO wTrade (initial, final) VALUES (?, ?);'.format(new_coin_id, coin)
+            if(self.uniqueWrite(add_trade, constrain, paramsCommand=[new_coin_id, coin], paramsConstrain=[new_coin_id, coin])):
                 print('Transacción {} => {} creada'.format(new_coin_id, coin))
 
 
@@ -122,12 +132,12 @@ class DataManager():
                 if balance == False and balance != 0:
                     # Caso que no existe el renglón de la crypto
                     print('Inicializando registro de moneda {}'.format(trade[state][1]))
-                    command = 'INSERT INTO balances (coin, amount) VALUES ({},{});'.format(coin, amount)
-                    self.write(command)
+                    command = 'INSERT INTO balances (coin, amount) VALUES (?, ?);'
+                    self.write(command, params=[coin, amount])
                 else:
                     # Update normal
                     balance += amount
-                    self.write('UPDATE balances SET amount = {} WHERE coin={};'.format(balance, coin))
+                    self.write('UPDATE balances SET amount = ? WHERE coin=?;', params=[balance, coin])
             except KeyError:
                 pass
         print('Balances actualizados')
@@ -145,9 +155,9 @@ class DataManager():
         # Now, calculate valuation
         gain = '{:.6f}'.format(100 * amount / (amount + Yt))
         # Saving data
-        command = '''INSERT INTO gains (trade_id, gain, date) VALUES ({});'''.format(', '.join([str(lastTrade), gain, '\"' + dt.datetime.now().isoformat() + '\"']))
-        constrain = '''SELECT id FROM gains WHERE trade_id = {};'''.format(lastTrade)
-        if self.uniqueWrite(command, constrain):
+        command = '''INSERT INTO gains (trade_id, gain, date) VALUES (?);'''
+        constrain = '''SELECT id FROM gains WHERE trade_id = ?;'''
+        if self.uniqueWrite(command, constrain, [str(lastTrade), gain, dt.datetime.now().isoformat()], [lastTrade]):
             print('Ganancia de {}% almacenada correctamente'.format(gain))
 
     # Valuation
@@ -164,16 +174,23 @@ class DataManager():
             # Retrieve the type of transaction
             wTrade = self.read('SELECT id FROM wTrade where final={};'.format(coin))[0][0]
             # Now retrieving all the investment trades
-            inv_trades = DataFrame(self.read('SELECT init, value FROM trades where type={};'.format(wTrade)), columns=['mxn', 'val'])
+            inv_trades = DataFrame(self.read('SELECT init, coinusd, mxnusd FROM trades where type={};'.format(wTrade)), columns=['mxn', 'coinusd', 'mxnusd'])
+            inv_trades['au'] = inv_trades['mxn'] 
+            inv_trades['xu'] = 1 / (inv_trades['coinusd'] * inv_trades['mxnusd'])
+            inv_trades['ax'] = inv_trades['mxn'] / inv_trades['mxnusd']
+            inv_trades['xx'] = 1 / inv_trades['coinusd']
             # Retrieve the type of transaction
             wTrade = self.read('SELECT id FROM wTrade where initial={};'.format(coin))[0][0]
             # Now retrieving all the investment trades
-            gain_trades = DataFrame(self.read('SELECT final, value FROM trades where type={};'.format(wTrade)), columns=['mxn', 'val']) * -1
-            gain_trades['val'] = -1 / gain_trades['val']
+            gain_trades = DataFrame(self.read('SELECT final, coinusd, mxnusd FROM trades where type={};'.format(wTrade)), columns=['mxn', 'coinusd', 'mxnusd'])
+            gain_trades['au'] = - gain_trades['mxn']
+            gain_trades['xu'] = 1 / (gain_trades['coinusd'] * gain_trades['mxnusd'])
+            gain_trades['ax'] = - gain_trades['mxn'] / gain_trades['mxnusd']
+            gain_trades['xx'] = 1 / gain_trades['coinusd']
             trades = concat([inv_trades, gain_trades])
-            print(trades)
-            valuation = (trades['mxn'] * trades['val']).sum() / trades['mxn'].sum()
-            self.write('UPDATE balances SET valuation = {} WHERE coin={};'.format(valuation, coin))
+            valuation_usd = 1 / ((trades['ax'] * trades['xx']).sum() / trades['ax'].sum())
+            valuation_mxn = 1 / ((trades['au'] * trades['xu']).sum() / trades['au'].sum())
+            self.write('UPDATE balances SET valuationusd = ?, valuationmxn= ? WHERE coin=?;', params=[valuation_usd, valuation_mxn, coin])
             
 
     # Funciones de lectura
@@ -199,19 +216,36 @@ class DataManager():
             return False
 
 
+    def getSymbol(self, c1:str, c2:str):
+        '''
+        Returns the symbols involved in the transaction, only if mxn is in there, will return None int it's place
+        '''
+        # First, loading the available symbols
+        with open('settings.json', 'r') as f:
+            data = load(f)
+        # Now checking if the coins
+        return [symbol for coin in [c1, c2] for symbol in data['symbols'] if coin.upper() in symbol]
+
+
     def retreiveBalance(self, coin):
         try:
             return self.read('SELECT amount FROM balances WHERE coin={}'.format(coin))[0][0]
         except IndexError:
             return False
 
-    def retrieveValuation(self, coin):
+
+    def retrieveValuation(self, coin: str, out:str = 'usd'):
         try:
             if type(coin) == str:
                 coin = self.getCoin(coin)
-            return self.read('SELECT valuation FROM balances WHERE coin={}'.format(coin))[0][0]
+            return self.read('SELECT valuation{} FROM balances WHERE coin={}'.format(out, coin))[0][0]
         except IndexError:
             return False
+
+
+    def investedOn(self, coin:str):
+        wType = self.read('SELECT id FROM wTrade WHERE final={};', format(self.getCoin(coin)))
+        
 
     # Funciones de consulta
     def getSuggestion(self, coin, threshold):
@@ -238,12 +272,12 @@ class DataManager():
         print(self.cursor.fetchall())
 
     # Only writes if it's unique
-    def uniqueWrite(self, command, constrain):
+    def uniqueWrite(self, command: str, constrain: str, paramsCommand: list, paramsConstrain: list):
         try:
-            self.cursor.execute(constrain)
+            self.cursor.execute(constrain, paramsConstrain)
             result = self.cursor.fetchall()
             if len(result) <= 0:
-                self.write(command)
+                self.write(command, paramsCommand)
                 return True
             else:
                 print('El valor ya existe con id: {}'.format(result[0][0]))
@@ -253,12 +287,12 @@ class DataManager():
             return False                
 
     # Writing
-    def write(self, command):
+    def write(self, command, params):
         try:
             if self.test:
                 print(command)
             else:
-                self.cursor.execute(command)
+                self.cursor.execute(command, params)
                 self.conn.commit()
         except sqlite3.Error as e:
             print(e)
@@ -337,7 +371,8 @@ def Initializer(path='records/records.db'):
     balances = '''CREATE TABLE IF NOT EXISTS balances (
         coin INTEGER PRIMARY KEY,
         amount NUMERIC,
-        valuation NUMERIC
+        valuationusd NUMERIC,
+        valuationmxn NUMERIC
     );'''
     # trades
     trades = '''CREATE TABLE IF NOT EXISTS trades (
@@ -345,7 +380,8 @@ def Initializer(path='records/records.db'):
         type INTEGER,
         init NUMERIC,
         final NUMERIC,
-        value NUMERIC,
+        coinusd NUMERIC,
+        mxnusd NUMERIC,
         date TEXT
     );'''
     # retornos
@@ -361,8 +397,36 @@ def Initializer(path='records/records.db'):
     conn.close()
 
 
+def getValuation(symbol: str):
+    '''
+    This retrieves the value of the MXN/USD and coin/USD to calculate a valuation afterwards
+    '''
+    params = {
+        'symbols': 'MXN=X',
+        'fields': 'regularMarketPrice'
+    }
+    req = get('https://query1.finance.yahoo.com/v6/finance/quote', params=params)
+    if req.ok:
+        data = loads(req.content.decode())
+        usdmxn = data['quoteResponse']['result'][0]['regularMarketPrice']
+    else:
+        usdmxn = None
+    # Retrieving the amount of coins/usd
+    params = {
+        'symbols': symbol,
+        'fields': 'regularMarketPrice'
+    }
+    req = get('https://query1.finance.yahoo.com/v6/finance/quote', params=params)
+    if req.ok:
+        data = loads(req.content.decode())
+        coinusd = data['quoteResponse']['result'][0]['regularMarketPrice']
+    else:
+        coinusd = None
+    return [usdmxn, coinusd]
+
+
 if __name__ == '__main__':
     db = DataManager()
-    
+    db.updateValuation()
     
 

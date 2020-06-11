@@ -14,17 +14,16 @@ with open('settings.json', 'r') as f:
 colors = data['freeze']['colors']
 
 class Freeze():
-    def __init__(self, ax: plt.axes, thunder, symbol: str, timespan: str='default'):
+    def __init__(self, ax: plt.axes, fire, coin: str, timespan: str='default'):
         '''
         Al definir el objeto se le envía el axis, es más sencillo que definir un 
         grid determinado
         :param axis: Axis the la figure donde se ploteará
-        :param thunder: De donde se saca la información
+        :param fire: De donde se saca la información
         '''
         self.ax: plt.axes = ax
-        self.thunder = thunder
-        self.symbol = symbol
-        self.coin = symbol[:3].lower()
+        self.fire = fire
+        self.coin = coin
         
         self.strWin = timespan if 'default' not in timespan else data['freeze']['window']
         self.color = colors
@@ -57,7 +56,7 @@ class Freeze():
         
 
     def plotCoin(self):
-        df = self.thunder.getData(self.coin, int(self.window))
+        df = self.fire.getData(int(self.window))
         self.prepPlot()
         self.plotData(df)
 
@@ -96,9 +95,10 @@ class Freeze():
     def plotValuation(self, val):
         X = self.ax.get_xlim()
         self.ax2.hlines(val, xmin=X[0], xmax=X[1], color=colors['tendency'], linestyle='dashed')
+        self.ax.set_title(self.ax.get_title() + '|  Val: {:.2f}'.format(val))
 
     def update(self):
-        df = self.thunder.refreshWindow(self.symbol, ret=True)
+        df = self.fire.getData(int(self.window))
         self.prepPlot()
         self.plotData(df)
 

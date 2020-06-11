@@ -15,8 +15,19 @@ class Fire():
         # Datos con los que se trabajara
         self.setDf(df)
 
+    # Observing the changes in the line
+    def findTendency(self):
+        # Tendency line
+        tendency = self.df.apply(lambda x: x[['close', 'open']].mean(), axis=1)
+        # close - open
+        change = self.df['close'] - self.df['open']
         
+
+
     # Setting up the df
     def setDf(self, df: DataFrame):
         self.df = df
        
+    # Retrieving data 
+    def getData(self, t: int=0):
+        return self.df[self.df.index > t]

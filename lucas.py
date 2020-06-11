@@ -2,10 +2,12 @@ from sys import argv, exit
 import matplotlib.pyplot as plt
 import matplotlib
 import threading
+import datetime as dt
 
 from records.DBManager import DataManager, Trade
-from web.collector import Thunder, CM2CU
+from core.collector import Thunder, CM2CU, ToDT
 from visualizer.visualizer import Freeze, createFigure
+from core.calcs import Fire
 
 matplotlib.use('tkAgg')
 
@@ -23,13 +25,14 @@ Options:
 
 # Declaring globals
 db = DataManager()
-thunder = Thunder(test=True)
-
+thunder = Thunder()
+fire = Fire('btc', thunder.getWindow('btc'))
 
 # De produccion
 # db = DataManager()
 # coins = db.retrieveCoins()
 # thunder = Thunder()
+# fires = [Fire(coin, thunder.getWindow((coin))) for coin in coins]
 
 
 def newShell():
@@ -58,14 +61,15 @@ def snapshot(window):
     print('{} window configured'.format(window)) if window else print('Default window configured')
     # Testing
     fig, ax = createFigure()
-    f = Freeze(ax, thunder, 'BTC-USD', timespan=window) if window else Freeze(ax, thunder, 'BTC-USD', timespan='5h')
+    f = Freeze(ax, fire, 'BTC-USD', timespan=window) if window else Freeze(ax, fire, 'BTC-USD', timespan='5h')
     f.plotCoin()
-    f.plotValuation(CM2CU(db.retrieveValuation('btc')))
+    f.plotValuation(db.retrieveValuation('btc'))
     
     # Complete
     # fig, axes = createFigure(rows=3, cols=1)
-    # freeze_axes = [Freeze(ax, thunder, coin, timespan=window) if window else Freeze(ax, thunder, coin) for (ax, coin) in set(zip(axes, coins))]
+    # freeze_axes = [Freeze(ax, fire, coin, timespan=window) if window else Freeze(ax, fire, coin) for (ax, fire, coin) in set(zip(axes, fires, coins))]
     # [f.plotCoin() for f in freeze_axes]
+    # [f.plotValuation(db.retrieveValuation(coin)) for (f, coin) in set(zip(freeze_axes, coins))]
     
     fig.tight_layout()
     plt.show()
@@ -101,8 +105,9 @@ if __name__ == "__main__":
     if len(commands) > 0:
         # Commands displayed
         HandleCommands(commands)
-    
+    # Probando del 8 - 11 de mayo
+
+    # thunder.getFromDates('btc', ToDT('12-5-20'), timespan={'days': 4})
     db.updateValuation()
-    
     # For now, this is the operation
     db.close()
