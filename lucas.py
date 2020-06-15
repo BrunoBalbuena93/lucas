@@ -4,20 +4,22 @@ import matplotlib
 import threading
 import datetime as dt
 
-from records.DBManager import DataManager, Trade
-from core.collector import Thunder, CM2CU, ToDT
+from records.DBManager import DataManager, Trade, NewTrade
+from core.collector import Thunder, ToDT
 from visualizer.visualizer import Freeze, createFigure
 from core.calcs import Fire
 
 matplotlib.use('tkAgg')
-
 """
 Entry commands to sys.argv
 snap --[window]: Muestra una ventana de un tiempo determinado
-shell: Initialize a shell 
+shell: Initialize a 
+trade: Agrega un trade a base de instrucciones
 
 Options:
 --test: Bool => Database en true o en false
+
+pyuic5 -x [nombre ui] -o [output.py]
 """
 # TODO: Configuración de shell con sys.argv
 # TODO: Traceback de inversion
@@ -27,7 +29,6 @@ Options:
 db = DataManager()
 thunder = Thunder()
 fire = Fire('btc', thunder.getWindow('btc'))
-
 # De produccion
 # db = DataManager()
 # coins = db.retrieveCoins()
@@ -57,6 +58,7 @@ def newShell():
 def goLive():
     import live_session
 
+
 def snapshot(window):
     print('{} window configured'.format(window)) if window else print('Default window configured')
     # Testing
@@ -64,13 +66,13 @@ def snapshot(window):
     f = Freeze(ax, fire, 'BTC-USD', timespan=window) if window else Freeze(ax, fire, 'BTC-USD', timespan='5h')
     f.plotCoin()
     f.plotValuation(db.retrieveValuation('btc'))
-    
+
     # Complete
     # fig, axes = createFigure(rows=3, cols=1)
     # freeze_axes = [Freeze(ax, fire, coin, timespan=window) if window else Freeze(ax, fire, coin) for (ax, fire, coin) in set(zip(axes, fires, coins))]
     # [f.plotCoin() for f in freeze_axes]
     # [f.plotValuation(db.retrieveValuation(coin)) for (f, coin) in set(zip(freeze_axes, coins))]
-    
+
     fig.tight_layout()
     plt.show()
 
@@ -84,21 +86,25 @@ def HandleCommands(commands):
     [commands.remove('--' + entry) for entry in options]
     print(options)
     print(commands)
-    
+
     if 'live' in commands:
         goLive()
     if 'snap' in commands:
         # Check if time declared
         win = options[0] if len(options) > 0 else False
         snapshot(win)
+    if 'trade' in commands:
+        commands.remove('trade')
+        NewTrade(db, commands)
+
     if 'shell' in commands:
         newShell()
     db.close()
-    exit()    
+    exit()
 
 
 if __name__ == "__main__":
-    print('Welcome to Lucas, your new friendly crypto manager!') 
+    print('Welcome to Lucas, your new friendly crypto manager!')
 
     # Parsing the options and commands
     commands = argv[1:]
@@ -107,7 +113,5 @@ if __name__ == "__main__":
         HandleCommands(commands)
     # Probando del 8 - 11 de mayo
 
-    # thunder.getFromDates('btc', ToDT('12-5-20'), timespan={'days': 4})
-    db.updateValuation()
     # For now, this is the operation
     db.close()

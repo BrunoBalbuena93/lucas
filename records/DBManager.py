@@ -57,8 +57,7 @@ class DataManager():
         else:
             # coin1 <=> coin2
             raise NotImplementedError
-        tradeValue = trade['final'][0] / trade['init'][0]
-
+        
         # Se agrega el timestamp
         date = dt.datetime.now().isoformat()
 
@@ -66,7 +65,6 @@ class DataManager():
         command = "INSERT INTO trades (type, init, final, coinusd, mxnusd, date) VALUES (?, ?, ?, ?, ?, ?);"
         self.write(command, params=[tradeType, money[0], money[1], valuation[1], valuation[0], date])  
         print('Trade almacenado: {} {} => {} {}'.format(trade['init'][0], trade['init'][1], trade['final'][0], trade['final'][1]))
-        update = {'add': [final_coin, money[1]]}  
         # Actualizando el valor de balances    
         self.updateBalance(trade)
         # Actualizando gains
@@ -106,13 +104,13 @@ class DataManager():
         # Se agregan los tipo de trade. Debe existir el que new_coin -> [coins] y [coins] -> new_coin
         for coin in coins:
             # Transaccion nueva a previas
-            constrain = 'SELECT id from wTrade WHERE initial=? AND final=?;'.format()
-            add_trade = 'INSERT INTO wTrade (initial, final) VALUES (?, ?);'.format()
+            constrain = 'SELECT id from wTrade WHERE initial=? AND final=?;'
+            add_trade = 'INSERT INTO wTrade (initial, final) VALUES (?, ?);'
             if(self.uniqueWrite(add_trade, constrain, paramsCommand=[coin, new_coin_id], paramsConstrain=[coin, new_coin_id])):
                 print('Transacción {} => {} creada'.format(coin, new_coin_id))
             # Transaccion previas a nueva
-            constrain = 'SELECT id from wTrade WHERE initial=? AND final=?;'.format()
-            add_trade = 'INSERT INTO wTrade (initial, final) VALUES (?, ?);'.format(new_coin_id, coin)
+            constrain = 'SELECT id from wTrade WHERE initial=? AND final=?;'
+            add_trade = 'INSERT INTO wTrade (initial, final) VALUES (?, ?);'
             if(self.uniqueWrite(add_trade, constrain, paramsCommand=[new_coin_id, coin], paramsConstrain=[new_coin_id, coin])):
                 print('Transacción {} => {} creada'.format(new_coin_id, coin))
 
@@ -193,7 +191,7 @@ class DataManager():
             self.write('UPDATE balances SET valuationusd = ?, valuationmxn= ? WHERE coin=?;', params=[valuation_usd, valuation_mxn, coin])
             
 
-    # Funciones de lectura
+    # Reading functions
     # Coins id
     def getCoins(self):
         try:
@@ -233,18 +231,24 @@ class DataManager():
         except IndexError:
             return False
 
-
+    # This returns the current valuation or the many valuations and the current one
     def retrieveValuation(self, coin: str, out:str = 'usd'):
         try:
             if type(coin) == str:
+                # In case the user sets the string
                 coin = self.getCoin(coin)
             return self.read('SELECT valuation{} FROM balances WHERE coin={}'.format(out, coin))[0][0]
         except IndexError:
             return False
 
 
-    def investedOn(self, coin:str):
-        wType = self.read('SELECT id FROM wTrade WHERE final={};', format(self.getCoin(coin)))
+    def tradesOf(self, coin:str, base:str='mxn'):
+        wType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(base), self.getCoin(coin)))[0][0]
+        entries = DataFrame(self.read('SELECT init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'valueusd', 'valuemxn'])
+        wType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(coin), self.getCoin(base)))[0][0]
+        outries = DataFrame(self.read('SELECT init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'valueusd', 'valuemxn'])
+        return [entries, outries]
+
         
 
     # Funciones de consulta
@@ -255,11 +259,12 @@ class DataManager():
         raise NotImplementedError
 
 
-    def getPastProfits(self, coin):
+    def getPastProfits(self, coin:str):
         '''
         Regresa los datos de la ultima transacción 
         coin: Divisa crypto que se desea observar
         '''
+        # FIXME: Reformular función
         # Retornar el valor de la ultima con ese tipo de moneda
         tradeType = self.read('''SELECT id FROM wTrade WHERE initial={};'''.format(self.getCoin(coin)))[0][0]
         trades = self.read('''SELECT trades.init, trades.final, gains.gain, gains.date FROM trades JOIN gains WHERE gains.trade_id = trades.id AND trades.type={};'''.format(tradeType))
@@ -424,9 +429,16 @@ def getValuation(symbol: str):
         coinusd = None
     return [usdmxn, coinusd]
 
+# This is a Lucas function
+def NewTrade(db:DataManager, data:list=None):
+    print('Has seleccionado agregar un nuevo trade')
+    if not data:
+        data = [input('Ingresa el inicial: [cantidad][moneda(3caracteres)]: ') for i in [1, 2]]
+    db.addTrade(Trade((float(data[0][:-3]), data[0][-3:]), (float(data[1][:-3]), data[1][-3:])))
+
 
 if __name__ == '__main__':
     db = DataManager()
-    db.updateValuation()
+    print(db.tradesOf('btc'))
     
 

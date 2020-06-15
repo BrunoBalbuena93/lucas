@@ -21,6 +21,12 @@
             "tendency": "#EDDDD4"
         }
         
+    },
+    "gui":{
+        "colors": {
+            "background": "#adb5bd"
+        }
     }
+    
 
 }
