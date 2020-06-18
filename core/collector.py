@@ -131,15 +131,56 @@ class Thunder():
         else:
             return None
 
+    @staticmethod
+    def getCoinValuation(symbol: str):
+        '''
+        This retrieves the value of the MXN/USD and coin/USD to calculate a valuation afterwards
+        '''
+        # Retrieving the amount of coins/usd
+        params = {
+            'symbols': symbol,
+            'fields': 'regularMarketPrice'
+        }
+        req = requests.get('https://query1.finance.yahoo.com/v6/finance/quote', params=params)
+        if req.ok:
+            data = loads(req.content.decode())
+            coinusd = data['quoteResponse']['result'][0]['regularMarketPrice']
+        else:
+            coinusd = None
+        return coinusd
 
 
-def ToDT(date:str, startYear:bool=False):
-    '''
-    str(date) => datetime object
-    '''
-    current_year = dt.date.today().strftime('%Y')
-    c = date[:-2] + current_year if current_year not in date else date
-    return dt.datetime.strptime(c, '%d-%m-%Y')
+    @staticmethod
+    def getUSDValuation():
+        '''
+        This retrieves the value of the MXN/USD and coin/USD to calculate a valuation afterwards
+        '''
+        params = {
+            'symbols': 'MXN=X',
+            'fields': 'regularMarketPrice'
+        }
+        req = requests.get('https://query1.finance.yahoo.com/v6/finance/quote', params=params)
+        if req.ok:
+            data = loads(req.content.decode())
+            usdmxn = data['quoteResponse']['result'][0]['regularMarketPrice']
+        else:
+            usdmxn = None
+        return usdmxn
+
+    
+
+    @staticmethod
+    def ToDT(date:str, startYear:bool=False):
+        '''
+        str(date) => datetime object
+        '''
+        current_year = dt.date.today().strftime('%Y')
+        c = date[:-2] + current_year if current_year not in date else date
+        return dt.datetime.strptime(c, '%d-%m-%Y')
+
+
+
 
 if __name__ == "__main__":
-    CM2CU(0.5)
+    print(Thunder().getUSDValuation())
+    print(Thunder.getUSDValuation())

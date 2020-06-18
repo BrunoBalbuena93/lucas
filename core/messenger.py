@@ -16,7 +16,7 @@ def sendEmail(subject, message):
     emisor = creds['emiter']
     password = creds['password']
     receptors = creds['recievers']
-
+    
     # Escribiendo el mensaje
     body = message
 
@@ -31,4 +31,5 @@ def sendEmail(subject, message):
         msg['To'] = ', '.join(receptors)
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
-        server.sendmail(emisor, receptor, msg.as_string())
+        [server.sendmail(emisor, receptor, msg.as_string()) for receptor in receptors]
+

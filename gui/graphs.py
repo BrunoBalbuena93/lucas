@@ -1,6 +1,7 @@
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QVBoxLayout, QSizePolicy, QMessageBox, QWidget, QPushButton
 from PyQt5.QtGui import QIcon
+from gui.visualizer import Freeze
 
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -10,24 +11,22 @@ import matplotlib.pyplot as plt
 import random
 
 class PlotCanvas(FigureCanvas):
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-
-        FigureCanvas.__init__(self, fig)
+    def __init__(self, parent=None, shortTerm:bool=True):
+        self.isShortTerm = shortTerm
+        self.fig = Figure(figsize=(5, 4), dpi=100, facecolor=Freeze.getFigureColor())
+        FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
-
+        plt.rcParams.update({'font.size': 6})
         FigureCanvas.setSizePolicy(self,
                 QSizePolicy.Expanding,
                 QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
-        # self.plot()
 
 
-    def plot(self):
-        data = [random.random() for i in range(25)]
-        ax = self.figure.add_subplot(111)
-        ax.plot(data, 'r-')
-        ax.set_title('PyQt Matplotlib Example')
+    def plot(self, coin:str, data):
+        self.fig.clf()
+        ax = self.fig.add_subplot(111)
+        ax.set_frame_on(False)
+        f = Freeze(ax, coin, isGui=True)
+        f.plot2Gui(df=data)
         self.draw()

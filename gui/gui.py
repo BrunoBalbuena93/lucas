@@ -7,19 +7,31 @@
 # WARNING! All changes made in this file will be lost!
 
 from json import load
+from sys import exit, argv
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from dialog import Ui_Dialog
-from graphs import PlotCanvas
+from gui.dialog import Ui_Dialog
+from gui.graphs import PlotCanvas
+from gui.visualizer import Freeze
+
+app = QtWidgets.QApplication(argv)
+MainWindow = QtWidgets.QMainWindow()
+    
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self, db, thunder):
         super().__init__()
+        # Lucas Variables
+        self.db = db
+        self.thunder = thunder
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(795, 556)
         MainWindow.setTabShape(QtWidgets.QTabWidget.Triangular)
         with open('settings.json', 'r') as f:
-            params = load(f)['gui']
+            data = load(f)
+            self.symbols = data['coin-symbol']
+            params = data['gui']
+        
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         # Configurando color
@@ -42,11 +54,11 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.comboBox.setMaxVisibleItems(4)
         self.comboBox.setFrame(True)
         self.comboBox.setObjectName("comboBox")
-        # Segun yo va aqui
+        self.comboBox.activated.connect(self.drawStatus)
         self.Graph1 = PlotCanvas(self.status)
         self.Graph1.setGeometry(QtCore.QRect(420, 30, 321, 171))
         self.Graph1.setObjectName("Graph1")
-        self.Graph2 = QtWidgets.QWidget(self.status)
+        self.Graph2 = PlotCanvas(self.status, False)
         self.Graph2.setGeometry(QtCore.QRect(420, 240, 321, 151))
         self.Graph2.setObjectName("Graph2")
         self.addFunds = QtWidgets.QPushButton(self.status)
@@ -70,13 +82,13 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.Update.setGeometry(QtCore.QRect(520, 420, 101, 28))
         self.Update.setObjectName("Update")
         self.totalAmount = QtWidgets.QLabel(self.status)
-        self.totalAmount.setGeometry(QtCore.QRect(160, 60, 59, 16))
+        self.totalAmount.setGeometry(QtCore.QRect(160, 60, 90, 16))
         self.totalAmount.setObjectName("totalAmount")
         self.currentValue = QtWidgets.QLabel(self.status)
-        self.currentValue.setGeometry(QtCore.QRect(160, 90, 59, 16))
+        self.currentValue.setGeometry(QtCore.QRect(160, 90, 90, 16))
         self.currentValue.setObjectName("currentValue")
         self.valuation = QtWidgets.QLabel(self.status)
-        self.valuation.setGeometry(QtCore.QRect(160, 120, 59, 16))
+        self.valuation.setGeometry(QtCore.QRect(160, 120, 90, 16))
         self.valuation.setObjectName("valuation")
         self.lbl_change = QtWidgets.QLabel(self.status)
         self.lbl_change.setGeometry(QtCore.QRect(40, 160, 111, 21))
@@ -178,7 +190,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.retranslateUi(MainWindow)
 
         # Definiendo funciones de botones
-        self.connectUi()
+        self.addExit.clicked.connect(self.CloseGUI)
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
@@ -191,8 +203,12 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.lbl_valueNow.setText(_translate("MainWindow", "Valor Actual:"))
         self.lbl_valuation.setText(_translate("MainWindow", "Valuación Actual:"))
         self.Update.setText(_translate("MainWindow", "Actualizar"))
-        # TODO: Recuperación de datos para llenado
         self.comboBox.addItem('Selecciona una moneda')
+        self.comboBox_3.addItem('Selecciona una moneda')
+        # Seleccionando monedas
+        coins = self.db.retrieveCoins()
+        self.comboBox.addItems(coins)
+        self.comboBox_3.addItems(coins)
         self.totalAmount.setText(_translate("MainWindow", ""))
         self.currentValue.setText(_translate("MainWindow", ""))
         self.valuation.setText(_translate("MainWindow", ""))
@@ -231,9 +247,29 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.addNewFunds.setStatusTip(_translate("MainWindow", "Agregar moneda"))
         
 
-    def connectUi(self):
-        print('Conect the actions and buttons')
-        self.addExit.clicked.connect(self.CloseGUI)
+    def drawStatus(self, value=0):
+        # Retrieving the coin
+        coin = self.comboBox.currentText()
+        # Retrieval of variables
+        totalAmount = self.db.retrieveAmount(coin)
+        coinAmount = self.db.retreiveBalance(self.db.getCoin(coin))
+        dbValuationMXN = self.db.retrieveValuation(self.db.getCoin(coin), 'mxn')
+        dbValuationUSD = self.db.retrieveValuation(coin)
+        dbLastValuationUSD = self.db.retrieveLastValuation(coin)
+        requestValuation = self.thunder.getCoinValuation(self.symbols[coin])
+        USDMXN = self.thunder.getUSDValuation()
+        # Now loading the data into the labels
+        _translate = QtCore.QCoreApplication.translate
+        self.totalAmount.setText(_translate("MainWindow", '{:.2f} mxn'.format(totalAmount)))
+        self.currentValue.setText(_translate("MainWindow", '{:.2f} mxn'.format(USDMXN * requestValuation * coinAmount)))
+        self.valuation.setText(_translate("MainWindow", '{:.2f} usd'.format(dbValuationUSD)))
+        self.changeAll.setText(_translate("MainWindow", '{:.4f}%'.format((requestValuation - dbValuationUSD) * 100 / dbValuationUSD)))
+        self.changeLast.setText(_translate("MainWindow", '{:.4f}%'.format((requestValuation - dbLastValuationUSD) * 100 / dbLastValuationUSD)))
+        # Ploting the graphs
+        self.Graph1.plot(coin, data=self.thunder.getWindow(coin))
+        
+
+        
 
     def CloseGUI(self):
         msg = QtWidgets.QMessageBox()
@@ -245,15 +281,15 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         if choice == QtWidgets.QMessageBox.Yes:
             MainWindow.close()
         
-
-        
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
+def startGUI(db, thunder):
+    ui = Ui_MainWindow(db, thunder)
     p = MainWindow.palette()
     p.setColor(MainWindow.backgroundRole(), QtGui.QColor(173, 181, 189))
     MainWindow.setPalette(p)
     MainWindow.show()
-    sys.exit(app.exec_())
+    exit(app.exec_())
+
+
+        
+if __name__ == "__main__":
+    startGUI(None, None)

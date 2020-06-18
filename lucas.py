@@ -1,20 +1,26 @@
 from sys import argv, exit
 import matplotlib.pyplot as plt
 import matplotlib
-import threading
 import datetime as dt
-
-from records.DBManager import DataManager, Trade, NewTrade
-from core.collector import Thunder, ToDT
-from visualizer.visualizer import Freeze, createFigure
-from core.calcs import Fire
-
+from json import load
+from time import sleep
+import pandas as pd
 matplotlib.use('tkAgg')
+
+from records.DBManager import DataManager, Trade, NewTrade, getValuation
+from core.collector import Thunder
+from core.calcs import Fire
+from core.alert import Alert
+from gui.visualizer import Freeze, createFigure
+from gui.gui import startGUI
+
+
 """
 Entry commands to sys.argv
 snap --[window]: Muestra una ventana de un tiempo determinado
-shell: Initialize a 
-trade: Agrega un trade a base de instrucciones
+trade [cantidad][moneda] [cantidad][moneda]: Agrega un trade a base de instrucciones
+alert --custom(opcional): Crea funcion iterante de alerta
+shell: Initialize a shell
 
 Options:
 --test: Bool => Database en true o en false
@@ -26,9 +32,12 @@ pyuic5 -x [nombre ui] -o [output.py]
 # TODO: Antes probar con un script aparte e importarlo como con temp. El tracker en tiempo real parece que tendrá que ser una gui
 
 # Declaring globals
+with open('settings.json', 'r') as f:
+    settings = load(f)
 db = DataManager()
 thunder = Thunder()
-fire = Fire('btc', thunder.getWindow('btc'))
+# fire = Fire('btc', thunder.getWindow('btc'))
+
 # De produccion
 # db = DataManager()
 # coins = db.retrieveCoins()
@@ -63,18 +72,26 @@ def snapshot(window):
     print('{} window configured'.format(window)) if window else print('Default window configured')
     # Testing
     fig, ax = createFigure()
-    f = Freeze(ax, fire, 'BTC-USD', timespan=window) if window else Freeze(ax, fire, 'BTC-USD', timespan='5h')
+    fire = Fire('btc', thunder.getWindow('btc'))
+    f = Freeze(ax, 'BTC-USD', fire, timespan=window) if window else Freeze(ax, 'BTC-USD', fire, timespan='5h')
     f.plotCoin()
     f.plotValuation(db.retrieveValuation('btc'))
 
     # Complete
     # fig, axes = createFigure(rows=3, cols=1)
-    # freeze_axes = [Freeze(ax, fire, coin, timespan=window) if window else Freeze(ax, fire, coin) for (ax, fire, coin) in set(zip(axes, fires, coins))]
+    # fires = [Fire(coin, thunder.getWindow((coin))) for coin in coins]
+    # freeze_axes = [Freeze(ax, coin, fire, timespan=window) if window else Freeze(ax, coin, fire) for (ax, fire, coin) in set(zip(axes, fires, coins))]
     # [f.plotCoin() for f in freeze_axes]
     # [f.plotValuation(db.retrieveValuation(coin)) for (f, coin) in set(zip(freeze_axes, coins))]
 
     fig.tight_layout()
     plt.show()
+   
+def createAlert(options):
+    Alert(options, db)
+
+def initGui():
+    startGUI(db, thunder)
 
 
 def HandleCommands(commands):
@@ -89,18 +106,26 @@ def HandleCommands(commands):
 
     if 'live' in commands:
         goLive()
+    
     if 'snap' in commands:
         # Check if time declared
         win = options[0] if len(options) > 0 else False
         snapshot(win)
+    
     if 'trade' in commands:
         commands.remove('trade')
         NewTrade(db, commands)
+    
+    if 'alert' in commands:
+        createAlert(options)
+            
+    if 'gui' in commands:
+        initGui()
 
     if 'shell' in commands:
         newShell()
-    db.close()
-    exit()
+        db.close()
+        exit()
 
 
 if __name__ == "__main__":
@@ -112,6 +137,5 @@ if __name__ == "__main__":
         # Commands displayed
         HandleCommands(commands)
     # Probando del 8 - 11 de mayo
-
     # For now, this is the operation
     db.close()

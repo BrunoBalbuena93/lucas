@@ -14,7 +14,7 @@ with open('settings.json', 'r') as f:
 colors = data['freeze']['colors']
 
 class Freeze():
-    def __init__(self, ax: plt.axes, fire, coin: str, timespan: str='default'):
+    def __init__(self, ax: plt.axes, coin: str, fire=None, timespan: str='default', isGui:bool = False):
         '''
         Al definir el objeto se le envía el axis, es más sencillo que definir un 
         grid determinado
@@ -24,6 +24,7 @@ class Freeze():
         self.ax: plt.axes = ax
         self.fire = fire
         self.coin = coin
+        self.isGui= isGui
         
         self.strWin = timespan if 'default' not in timespan else data['freeze']['window']
         self.color = colors
@@ -60,6 +61,28 @@ class Freeze():
         self.prepPlot()
         self.plotData(df)
 
+    def plot2Gui(self, df):
+        # Dado que las velas no se ven tanto, opinaria por hacer una curva de tendencia con sombeado, igual es más rapida
+        self.ax.set_facecolor(self.color['background'])
+        self.ax2 = self.ax.twinx()
+        self.ax2.grid(b=True, which='major', color=self.color['high'], linestyle='-')
+        self.ax.plot(df.index, df['volume'], color=self.color['volume'], alpha=0.85)
+        self.ax.fill_between(df.index, df['volume'], color=self.color['volume'], alpha=0.3)
+        self.ax.set_ylim([0, 12 * max(df['volume']) / 3])
+        tendency = df.apply(lambda x: x[['close', 'open']].mean(), axis=1)
+        self.ax2.plot(df.index, tendency, color=self.color['tendency'])
+        self.ax2.fill_between(df.index, df['close'], df['open'], color=self.color['high'], alpha=0.3)
+        low_lim = df[['open', 'close', 'high', 'low']].min().min()
+        high_lim = df[['open', 'close', 'high', 'low']].max().max()
+        rango = high_lim - low_lim
+        self.ax2.set_ylim([low_lim - 0.33 * rango, high_lim + 0.02*rango])
+        [spine.set_visible(False) for spine in self.ax2.spines.values()]
+        [spine.set_visible(False) for spine in self.ax.spines.values()]
+        self.ax.get_xaxis().set_visible(False)
+        self.ax2.get_xaxis().set_visible(False)
+        self.ax.get_yaxis().set_visible(False)
+        # self.ax2.get_yaxis().set_visible(False)
+        
     
     def plotData(self, df):
         '''
@@ -86,11 +109,11 @@ class Freeze():
         high_lim = df[['open', 'close', 'high', 'low']].max().max()
         rango = high_lim - low_lim
         self.ax2.set_ylim([low_lim - 0.33 * rango, high_lim + 0.02*rango])
-        self.ax2.set_xticks([])
         [spine.set_visible(False) for spine in self.ax2.spines.values()]
         [spine.set_visible(False) for spine in self.ax.spines.values()]
+        self.ax2.set_xticks([])
         self.ax.set_xticks([])
-    
+            
     
     def plotValuation(self, val):
         X = self.ax.get_xlim()
@@ -101,6 +124,13 @@ class Freeze():
         df = self.fire.getData(int(self.window))
         self.prepPlot()
         self.plotData(df)
+
+    def __str__(self):
+        return 'Coin: {}  {} - {}'.format(self.coin, dt.datetime.fromtimestamp(self.window).strftime('%Y-%m-%d %H:%M')[2:], dt.datetime.now().strftime('%Y-%m-%d %H:%M')[2:])
+    
+    @staticmethod
+    def getFigureColor():
+        return colors['figure-background']
 
         
 def createFigure(rows: int=1, cols: int=1):

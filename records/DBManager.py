@@ -1,7 +1,7 @@
 import sqlite3
 import datetime as dt
 from os.path import isfile
-from pandas import DataFrame, concat
+from pandas import DataFrame, concat, Series
 from requests import get
 from json import loads, load
 
@@ -211,7 +211,7 @@ class DataManager():
         try:
             return [value[0] for value in self.read('SELECT coin FROM wCoin;') if 'mxn' not in value[0]]
         except:
-            return False
+            return None
 
 
     def getSymbol(self, c1:str, c2:str):
@@ -237,9 +237,32 @@ class DataManager():
             if type(coin) == str:
                 # In case the user sets the string
                 coin = self.getCoin(coin)
-            return self.read('SELECT valuation{} FROM balances WHERE coin={}'.format(out, coin))[0][0]
+            if 'usd' in out:
+                return self.read('SELECT valuation{} FROM balances WHERE coin={}'.format(out, coin))[0][0]
+            return self.read('SELECT valuationmxn FROM balances WHERE coin={}'.format(coin))[0][0]
         except IndexError:
-            return False
+            return None
+
+
+    def retrieveLastValuation(self, coin: str, out:str = 'usd'):
+        try:
+            return self.read('SELECT coin{} FROM trades WHERE type=(SELECT id FROM wTrade WHERE final={}) ORDER BY date;'.format(out, self.getCoin(coin)))[0][0]
+        except:
+            return None
+
+
+    def retrieveAmount(self, coin:str):
+        wTrade = self.read('SELECT id FROM wTrade where final={};'.format(self.getCoin(coin)))[0][0]
+        # Now retrieving all the investment trades
+        inv_trades = Series([value[0] for value in self.read('SELECT init FROM trades where type={};'.format(wTrade))]).sum()
+        # Retrieve the type of transaction
+        wTrade = self.read('SELECT id FROM wTrade where initial={};'.format(self.getCoin(coin)))[0][0]
+        # Now retrieving all the investment trades
+        gain_trades = Series([value[0] for value in self.read('SELECT final FROM trades where type={};'.format(wTrade))]).sum()
+        return inv_trades - gain_trades
+
+            
+
 
 
     def tradesOf(self, coin:str, base:str='mxn'):
@@ -376,6 +399,7 @@ def Initializer(path='records/records.db'):
     balances = '''CREATE TABLE IF NOT EXISTS balances (
         coin INTEGER PRIMARY KEY,
         amount NUMERIC,
+        invested NUMERIC,
         valuationusd NUMERIC,
         valuationmxn NUMERIC
     );'''

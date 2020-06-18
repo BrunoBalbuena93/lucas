@@ -96,7 +96,7 @@ class Ui_Dialog(QtWidgets.QDialog):
             msg.setIcon(QtWidgets.QMessageBox.Information)
             msg.setText('Operación completada')
             msg.setWindowTitle('Completado')
-            choice = msg.exec_()
+            msg.exec_()
             Dialog.accept()
 
         except ValueError:

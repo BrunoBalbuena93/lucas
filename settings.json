@@ -1,5 +1,6 @@
 {
     "symbols": ["BTC-USD", "ETH-USD", "XRP-USD"],
+    "coin-symbol": { "btc": "BTC-USD", "eth": "ETH-USD","xrp": "XRP-USD"},
     "thunder": {
         "interval": "5m",
         "pinch-interval": "3m",
@@ -26,6 +27,13 @@
         "colors": {
             "background": "#adb5bd"
         }
+    },
+
+    "alert":{
+        "coins": ["btc","eth"],
+        "delta": [3, -5],
+        "valuation": "all",
+        "period": 5
     }
     
 
