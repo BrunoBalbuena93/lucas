@@ -42,8 +42,15 @@ class DataManager():
             if 'mxn' in trade['init'][1] :
                 self.addFund(trade['init'][0])
         # Primero obtenemos las monedas
-        init_coin = self.getCoin(trade['init'][1])
-        final_coin = self.getCoin(trade['final'][1])
+        involved_coins = []
+        for entry in ['init', 'final']:
+            try:
+                involved_coins.append(self.getCoin(trade[entry][1]))
+            except:
+                self.addCoin(trade[entry][1])
+                involved_coins.append(self.getCoin(trade[entry][1]))
+        init_coin = involved_coins[0]
+        final_coin = involved_coins[1]
         # Obtenemos los symbols para requests que puedan ser necesarias
         symbols = self.getSymbol(trade['init'][1], trade['final'][1])
         # Se obtiene el tipo de trade
@@ -71,23 +78,19 @@ class DataManager():
         if 'mxn' in trade['final'][1]:  self.updateGains(trade['init'][0], tradeType)
 
     # Agregando fondos
-    def addFund(self, fund):
+    def addFund(self, fund:int or float):
         """
         fund = {amount: number, isInput: bool}
         """
-        if type(fund) == int:
-            # Se coloca solo el nombre
-            entry = fund
-            isInput = 1
-        else:
-            entry = fund['amount']
-            isInput = 1 if fund['isInput'] == True else -1
         # Agregando fecha
         date = dt.datetime.now().isoformat()
         command = "INSERT INTO spei (amount, input, date) VALUES (?, ?, ?);"
-        self.write(command, params=[entry, isInput, date])
+        self.write(command, params=[fund, 1, date])
         print('Fondos almacenados correctamente')
-        self.updateBalance({'init': [entry, 'mxn']})
+        balance = self.retreiveBalance(self.getCoin('mxn'))
+        balance += fund
+        self.write('UPDATE balances SET amount = ? WHERE coin=?;', params=[balance, self.getCoin('mxn')])
+
 
     # Agregar monedas
     def addCoin(self, coin):
@@ -127,7 +130,7 @@ class DataManager():
                 balance = self.retreiveBalance(self.getCoin(trade[state][1]))
                 amount = trade[state][0] if state == 'final' else -1 * trade[state][0]
                 coin = self.getCoin(trade[state][1])
-                if balance == False and balance != 0:
+                if balance == False:
                     # Caso que no existe el renglón de la crypto
                     print('Inicializando registro de moneda {}'.format(trade[state][1]))
                     command = 'INSERT INTO balances (coin, amount) VALUES (?, ?);'
@@ -462,7 +465,7 @@ def NewTrade(db:DataManager, data:list=None):
 
 
 if __name__ == '__main__':
-    db = DataManager()
-    print(db.tradesOf('btc'))
-    
+    db = DataManager(test=True)
+    db.addTrade(Trade([200, 'mxn'], [600, 'ltc']))
+    # db.updateBalance(Trade([200, 'mxn'], [145.47714157, 'gnt']))
 

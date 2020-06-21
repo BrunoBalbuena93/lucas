@@ -1,6 +1,6 @@
 {
-    "symbols": ["BTC-USD", "ETH-USD", "XRP-USD"],
-    "coin-symbol": { "btc": "BTC-USD", "eth": "ETH-USD","xrp": "XRP-USD"},
+    "symbols": ["BTC-USD", "ETH-USD", "XRP-USD", "GNT-USD"],
+    "coin-symbol": { "btc": "BTC-USD", "eth": "ETH-USD","xrp": "XRP-USD", "gnt": "GNT-USD"},
     "thunder": {
         "interval": "5m",
         "pinch-interval": "3m",
@@ -23,6 +23,16 @@
         }
         
     },
+    "fire":{
+        "window": 15,
+        "colors":{
+            "background": "#adb5bd",
+            "real": "#073B4C",
+            "gap": "#118AB2",
+            "svr": "#06D6A0",
+            "bayes": "#FFD166"
+        }
+    },
     "gui":{
         "colors": {
             "background": "#adb5bd"
@@ -30,10 +40,21 @@
     },
 
     "alert":{
-        "coins": ["btc","eth"],
-        "delta": [3, -5],
+        "coins": ["btc","eth", "xrp", "gnt"],
         "valuation": "all",
-        "period": 5
+        "period": 5,
+        "limits": {
+            "btc": {"over": 2, "under": 3},
+            "eth": {"over": 2, "under": 3},
+            "xrp": {"over": 3, "under": 3},
+            "gnt": {"over": 3, "under": 4}
+        },
+        "deltas": {
+            "btc": {"over": 2, "under": 3},
+            "eth": {"over": 2, "under": 3},
+            "xrp": {"over": 3, "under": 3},
+            "gnt": {"over": 3, "under": 4}
+        }
     }
     
 

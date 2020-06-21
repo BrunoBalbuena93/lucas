@@ -116,6 +116,11 @@ def HandleCommands(commands):
         commands.remove('trade')
         NewTrade(db, commands)
     
+    if 'funds' in commands:
+        if len(options) == 0:
+            options = [input('¿De cuanto fue el deposito?  ')]
+        db.addFund(float(options[0]))
+
     if 'alert' in commands:
         createAlert(options)
             

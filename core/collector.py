@@ -16,7 +16,7 @@ period: 5d (Cantidad de días atrás en los que te deseas fijar)
 # TODO: Migrar todo lo que tiene que ver con datos a Fire. Aqui solo son los parámetros de las requests
 
 with open('settings.json', 'r') as f:
-    symbols = load(f)['symbols']
+    symbols = load(f)['coin-symbol']
 
 class Thunder():
     def __init__(self):
@@ -73,9 +73,8 @@ class Thunder():
                 date1 = date_top - dt.timedelta(tm=timespan[tm])
         return self.makeRequest('', self.symbols[coin], date2, date1)
 
-
     # Request para solicitar el historico
-    def getHistorical(self, symbol):
+    def getHistorical(self, coin):
         return self.makeRequest('hist', self.symbols[coin])
         
 
@@ -168,6 +167,34 @@ class Thunder():
         return usdmxn
 
     
+    @staticmethod
+    def get5h(symbol:str):
+        # Configuring params for the query
+        period2 = dt.datetime.now()
+        period1 = period2 - dt.timedelta(hours=5)
+        params = {
+            'symbols': symbol,
+            'period1': int(period1.timestamp()),
+            'period2': int(period2.timestamp()),
+            'interval': '5m',
+            'lang': 'en-US',
+            'region': 'US',
+            'corsDomain': 'finance.yahoo.com'
+        }
+        req = requests.get('https://query1.finance.yahoo.com/v8/finance/chart/{}'.format(symbol), params=params)
+        if req.ok:
+            try:
+                # Construyendo dataframe
+                data = loads(req.content.decode())
+                t = data['chart']['result'][0]['timestamp']
+                indicators = data['chart']['result'][0]['indicators']['quote'][0]
+                # Asignando el valor al diccionario
+                return DataFrame([Series(indicators[key], index=t, name=key) for key in indicators.keys()]).T
+            except KeyError:
+                return None
+        else:
+            return None
+
 
     @staticmethod
     def ToDT(date:str, startYear:bool=False):
