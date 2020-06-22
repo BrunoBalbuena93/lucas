@@ -1,7 +1,12 @@
 from pandas import DataFrame, Series
-from numpy import c_
-
+import numpy as np
+import datetime as dt
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.linear_model import BayesianRidge
+from sklearn.svm import SVR
+from sklearn.isotonic import IsotonicRegression
+from sklearn.model_selection import train_test_split
 
 '''
 Fire is the instance which has all the data
@@ -18,37 +23,86 @@ class Fire():
         self.coin = coin
         self.df = df
         self.tendency = df.apply(lambda x: x[['close', 'open']].mean(), axis=1).dropna(axis=0)
-        self.sma = self.getSMA(24, self.df['close']).dropna()
-        self.ema = self.getEMA(24, self.df['close']).dropna()   
-        
+        self.sma = self.getSMA(12, self.df['close']).dropna()
+        self.ema = self.getEMA(12, self.df['close']).dropna()
+        # Este es el escalador de precios (y)
+        self.data_scaler = MinMaxScaler().fit(self.tendency.values.reshape(-1, 1))   
+        # self.findChanges()  
+        self.n = 3   
    
+
+    def findChanges(self):
+        # Here we will count the changes
+        raise NotImplementedError
+
     # Retrieving data 
     def getData(self, t: int=0):
         return self.df[self.df.index > t]
 
+    # Last value of the retrieved data
     def valueNow(self):
         return Series([self.df['close'].values[-1], self.sma.values[-1], self.ema.values[-1]], index=['close', 'sma', 'ema'])
 
-    def forecast(self):
-        raise NotImplementedError
+    # Train models
+    def trainModels(self, dates:np.array, scaler:MinMaxScaler):
+        # First, splitting data
+        x_train, x_test, y_train, y_test = train_test_split(scaler.transform(dates.reshape(-1, 1)), self.data_scaler.transform(self.tendency.values.reshape(-1 , 1)), test_size=0.2)
+        x_train = np.vander(x_train.reshape(-1), self.n + 1, increasing=True)
+        x_test = np.vander(x_test.reshape(-1), self.n + 1, increasing=True)
+        # Bayesian Ridge
+        bayRidge = BayesianRidge(tol=1e-6, compute_score=True)
+        bayRidge.set_params(alpha_init=1, lambda_init=0.001)
+        bayRidge.fit(x_train, y_train.reshape(-1))
+        bayScore = bayRidge.score(x_test, y_test.reshape(-1))
+        # SVR
+        svr_rbf = SVR(kernel='rbf', C=1, gamma=0.25)
+        svr_rbf.fit(x_train, y_train.reshape(-1))
+        svr_score = svr_rbf.score(x_test, y_test.reshape(-1))
+        return bayRidge, svr_rbf, [bayScore, svr_score]
         
 
+    def alertForecast(self, forecast:int):
+        # Here we should give an opinion on how it develops
+        # Configuring the data
+        dates = np.append(np.array(self.tendency.index.astype(np.int64)), Fire.composeDates(forecast))
+        date_scaler = MinMaxScaler().fit(dates.reshape(-1, 1))
+        # First, we retrieve the models (SVR & Bayes)
+        bayes, svr, scores = self.trainModels(dates[:-forecast], date_scaler)
+        x = date_scaler.transform(dates.reshape(-1, 1))
+        x = np.vander(x.reshape(-1), self.n + 1, increasing=True)
+        y_bayes = self.data_scaler.inverse_transform(bayes.predict(x).reshape(-1,1)).reshape(-1)
+        y_svr = self.data_scaler.inverse_transform(svr.predict(x).reshape(-1,1)).reshape(-1)
+        print(scores)
+        plt.plot(self.tendency.index, self.tendency.values, label='real')
+        plt.plot(dates, y_bayes, label='bayes')
+        plt.plot(dates, y_svr, label='svr')
+        plt.plot(self.ema.index, self.ema.values, label='ema')
+        plt.plot(self.sma.index, self.sma.values, label='sma')
+        plt.title(self.coin)
+        plt.legend()
+        plt.show()
+        
+        
+    
     @staticmethod 
     def getEMA(window:int, data:Series):
         ema = [data[0:window].mean()]
         [ema.append(value * (2 / (1 + window)) + ema[-1] * (1 - (2/(1+window)))) for value in data[window:].values]
         return Series(ema, index=data.index[window-1:])
 
+
     @staticmethod
     def getSMA(window:int, data:Series):
         sma = [data[i:window + i].mean() for i in range(len(data)-window +1)]
         return Series(sma, index=data.index[window-1:])
 
-    # @staticmethod 
-    # def getMACD(window1: int, window2: int, data: Series):
-    #     ema_w1 = self.getEMA(window1, data)
-    #     ema_w2 = self.getEMA(window2)[-len(ema_w1):]
-    #     macd = Series([(e2 - e1) for (e2, e1) in nc_[ema_w2.values, ema_w1.values]], index=ema_w1.index)
-    #     sigline = self.getEMA(9, macd)
-    #     hist = Series([(e2 - e1) for (e2, e1) in nc_[macd.values[-len(sigline):], sigline.values]], index=sigline.index)
-    #     return macd, sigline, hist
+
+    @staticmethod 
+    def composeDates(forecast: int):
+        # Create the data for the forecast in dates (in order to train and test the models)
+        now = dt.datetime.now()
+        return np.array([int((now + dt.timedelta(minutes= i*5 + 1)).timestamp()) for i in range(forecast)])
+        
+
+if __name__ == '__main__':
+    print(Fire.composeDates(5))

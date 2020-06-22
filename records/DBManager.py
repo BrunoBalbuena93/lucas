@@ -74,8 +74,12 @@ class DataManager():
         print('Trade almacenado: {} {} => {} {}'.format(trade['init'][0], trade['init'][1], trade['final'][0], trade['final'][1]))
         # Actualizando el valor de balances    
         self.updateBalance(trade)
-        # Actualizando gains
-        if 'mxn' in trade['final'][1]:  self.updateGains(trade['init'][0], tradeType)
+        # Es retiro?
+        if 'mxn' in trade['final'][1]:
+            self.addGains()
+        else:
+            self.updateValuation()
+
 
     # Agregando fondos
     def addFund(self, fund:int or float):
@@ -126,7 +130,7 @@ class DataManager():
         """
         for state in ['init', 'final']:
             try:
-                # Primero corroboramos que exista el renglón
+                # Retrieve the current balance
                 balance = self.retreiveBalance(self.getCoin(trade[state][1]))
                 amount = trade[state][0] if state == 'final' else -1 * trade[state][0]
                 coin = self.getCoin(trade[state][1])
@@ -142,56 +146,60 @@ class DataManager():
             except KeyError:
                 pass
         print('Balances actualizados')
-        self.updateValuation()
+        
     
-    # Gains
-    def updateGains(self, amount, tradeType):
-        """
-        """
-        # First, retrieve the trades to MXN
-        lastTrade = self.read('''SELECT id  FROM trades WHERE type = {} ORDER BY date DESC'''.format(tradeType))[0][0]
-        # Then, retrieve the updated balance. 
-        coin = self.read('''SELECT initial FROM wTrade WHERE id={}'''.format(tradeType))[0][0]
-        Yt = self.read('''SELECT amount  FROM balances WHERE coin={}'''.format(coin))[0][0]
-        # Now, calculate valuation
-        gain = '{:.6f}'.format(100 * amount / (amount + Yt))
-        # Saving data
-        command = '''INSERT INTO gains (trade_id, gain, date) VALUES (?);'''
-        constrain = '''SELECT id FROM gains WHERE trade_id = ?;'''
-        if self.uniqueWrite(command, constrain, [str(lastTrade), gain, dt.datetime.now().isoformat()], [lastTrade]):
-            print('Ganancia de {}% almacenada correctamente'.format(gain))
-
     # Valuation
     def updateValuation(self):
         '''
         Update the current valuation of the money invested. In other words, on average how much you paid for the amount
         of crypto 
         dot(A, X) = y
+        au => término respecto a usd
+        ax => término respecto a mxn
         '''
         # Retrieve the coins to find the trades
-        coins = self.getCoins()
-        coins.remove(self.getCoin('mxn'))
+        coins = self.retrieveCoins()
         for coin in coins:
             # Retrieve the type of transaction
-            wTrade = self.read('SELECT id FROM wTrade where final={};'.format(coin))[0][0]
-            # Now retrieving all the investment trades
-            inv_trades = DataFrame(self.read('SELECT init, coinusd, mxnusd FROM trades where type={};'.format(wTrade)), columns=['mxn', 'coinusd', 'mxnusd'])
-            inv_trades['au'] = inv_trades['mxn'] 
-            inv_trades['xu'] = 1 / (inv_trades['coinusd'] * inv_trades['mxnusd'])
-            inv_trades['ax'] = inv_trades['mxn'] / inv_trades['mxnusd']
-            inv_trades['xx'] = 1 / inv_trades['coinusd']
-            # Retrieve the type of transaction
-            wTrade = self.read('SELECT id FROM wTrade where initial={};'.format(coin))[0][0]
-            # Now retrieving all the investment trades
-            gain_trades = DataFrame(self.read('SELECT final, coinusd, mxnusd FROM trades where type={};'.format(wTrade)), columns=['mxn', 'coinusd', 'mxnusd'])
-            gain_trades['au'] = - gain_trades['mxn']
-            gain_trades['xu'] = 1 / (gain_trades['coinusd'] * gain_trades['mxnusd'])
-            gain_trades['ax'] = - gain_trades['mxn'] / gain_trades['mxnusd']
-            gain_trades['xx'] = 1 / gain_trades['coinusd']
+            inv_trades, gain_trades = self.tradesOf(coin)
+            inv_trades['au'] = inv_trades['amount'] 
+            inv_trades['xu'] = 1 / (inv_trades['valuecoinusd'] * inv_trades['valueusdmxn'])
+            inv_trades['ax'] = inv_trades['amount'] / inv_trades['valueusdmxn']
+            inv_trades['xx'] = 1 / inv_trades['valuecoinusd']
+            
+            gain_trades['au'] = - gain_trades['amount']
+            gain_trades['xu'] = 1 / (gain_trades['valuecoinusd'] * gain_trades['valueusdmxn'])
+            gain_trades['ax'] = - gain_trades['amount'] / gain_trades['valueusdmxn']
+            gain_trades['xx'] = 1 / gain_trades['valuecoinusd']
             trades = concat([inv_trades, gain_trades])
             valuation_usd = 1 / ((trades['ax'] * trades['xx']).sum() / trades['ax'].sum())
             valuation_mxn = 1 / ((trades['au'] * trades['xu']).sum() / trades['au'].sum())
-            self.write('UPDATE balances SET valuationusd = ?, valuationmxn= ? WHERE coin=?;', params=[valuation_usd, valuation_mxn, coin])
+            print('{}   {}'.format(valuation_usd, valuation_mxn))
+            self.write('UPDATE balances SET valuationusd = ?, valuationmxn= ? WHERE coin=?;', params=[valuation_usd, valuation_mxn, self.getCoin(coin)])
+    
+
+    # Gains
+    def addGains(self):
+        """
+        """
+        # Obteniendo el trade anterior con id
+        lastTrade = self.read('SELECT id, type, init, final, coinusd FROM trades ORDER BY date DESC LIMIT 1')[0]
+        # Checa que no exista el registro antes
+        try:
+            self.read('SELECT * FROM gains WHERE trade_id={};'.format(lastTrade[0]))[0][0]
+            print('That records is already in DB')
+            return
+        except IndexError:
+            # Recuperando moneda
+            coin_id = int(self.read('SELECT initial FROM wTrade WHERE id={};'.format(lastTrade[1]))[0][0])
+            # Recuperando la valuacion
+            currentValuation = self.retrieveValuation(coin_id)
+            gain = float('{:.4f}'.format(100 * (lastTrade[4] - currentValuation) / currentValuation ))
+            command = '''INSERT INTO gains (trade_id, amount, gain, date) VALUES (?, ?, ?, ?);'''
+            params = [lastTrade[0], lastTrade[3], gain, dt.datetime.now().isoformat()]
+            self.write(command, params)
+            print('Ganancia de {}% almacenada correctamente'.format(gain))
+
             
 
     # Reading functions
@@ -254,25 +262,24 @@ class DataManager():
             return None
 
 
-    def retrieveAmount(self, coin:str):
-        wTrade = self.read('SELECT id FROM wTrade where final={};'.format(self.getCoin(coin)))[0][0]
+    def retrieveAmount(self, coin):
+        if type(coin) == 'str':
+            coin = self.getCoin(coin)
+        wTrade = self.read('SELECT id FROM wTrade where final={};'.format(coin))[0][0]
         # Now retrieving all the investment trades
         inv_trades = Series([value[0] for value in self.read('SELECT init FROM trades where type={};'.format(wTrade))]).sum()
         # Retrieve the type of transaction
-        wTrade = self.read('SELECT id FROM wTrade where initial={};'.format(self.getCoin(coin)))[0][0]
+        wTrade = self.read('SELECT id FROM wTrade where initial={};'.format(coin))[0][0]
         # Now retrieving all the investment trades
         gain_trades = Series([value[0] for value in self.read('SELECT final FROM trades where type={};'.format(wTrade))]).sum()
         return inv_trades - gain_trades
 
-            
-
-
-
+    # Returns all trades related with 2 coins
     def tradesOf(self, coin:str, base:str='mxn'):
         wType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(base), self.getCoin(coin)))[0][0]
-        entries = DataFrame(self.read('SELECT init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'valueusd', 'valuemxn'])
+        entries = DataFrame(self.read('SELECT init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'valuecoinusd', 'valueusdmxn'])
         wType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(coin), self.getCoin(base)))[0][0]
-        outries = DataFrame(self.read('SELECT init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'valueusd', 'valuemxn'])
+        outries = DataFrame(self.read('SELECT init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'valuecoinusd', 'valueusdmxn'])
         return [entries, outries]
 
         
@@ -319,14 +326,14 @@ class DataManager():
 
     # Writing
     def write(self, command, params):
-        try:
-            if self.test:
-                print(command)
-            else:
-                self.cursor.execute(command, params)
-                self.conn.commit()
-        except sqlite3.Error as e:
-            print(e)
+        # try:
+        if self.test:
+            print(command)
+        else:
+            self.cursor.execute(command, params)
+            self.conn.commit()
+        # except sqlite3.Error as e:
+        #     print(e)
 
     def read(self, c):
         self.cursor.execute(c)
@@ -402,7 +409,6 @@ def Initializer(path='records/records.db'):
     balances = '''CREATE TABLE IF NOT EXISTS balances (
         coin INTEGER PRIMARY KEY,
         amount NUMERIC,
-        invested NUMERIC,
         valuationusd NUMERIC,
         valuationmxn NUMERIC
     );'''
@@ -466,6 +472,5 @@ def NewTrade(db:DataManager, data:list=None):
 
 if __name__ == '__main__':
     db = DataManager(test=True)
-    db.addTrade(Trade([200, 'mxn'], [600, 'ltc']))
-    # db.updateBalance(Trade([200, 'mxn'], [145.47714157, 'gnt']))
+    db.addGains()
 

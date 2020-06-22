@@ -3,6 +3,8 @@ from json import load
 from time import sleep, time
 from sched import scheduler
 from datetime import datetime
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 
 from .collector import Thunder
 from .messenger import sendEmail
@@ -29,6 +31,7 @@ class Alert():
                 deltas = {coin: {X: float(entry) for X,entry in zip(['over', 'under'], input('Indica el cambio porcentual separados por un espacio por arriba y por debajo de la moneda {}: '.format(coin)).split())} for coin in coins}
                 valuation = input('¿A que valuación? \nall => General\nlast => ultima\n')
                 period = float(input('¿Cada cuantos minutos quieres ver los cambios?: '))
+                forecast = int(input('¿Cuantos datos adelantes deseas pronosticar?: '))
                 msg = 'Observar cada {} minutos y notificar si los cambios son de:\n'.format(period) + '\n'.join(['{}: +{}%  -{}%'.format(key, deltas[key]['over'], deltas[key]['under']) for key in deltas.keys()]) 
                 prompt = input(msg)
                 params_set = True if prompt.lower() == 's' or prompt == ''  else False
@@ -43,6 +46,7 @@ class Alert():
             self.myValuation = default['valuation']
             self.delta = DataFrame(default['limits'])
             self.period = default['period']
+            self.forecast = default['forecast']
         print(self.__str__())
         # Configure the thing in memory
 
@@ -65,8 +69,10 @@ class Alert():
         df.loc['slow'] = (df.loc['close'] - df.loc['sma']) * 100 / df.loc['sma']
         # Calculate differences (%) between reality and own valuation
         df.loc['dif'] = (df.loc['close'] - df.loc['self']) * 100 / df.loc['self']
-        # TODO: Insert fire to predict cool stuff even though it is not over threshold
-
+        # TODO: Aquí va la magia de esto
+        # # Starting with ML
+        # [data[coin].alertForecast(self.forecast) for coin in self.coins]
+        
         # TODO: Guardar el historial como un diccionario local aquí!!
 
 

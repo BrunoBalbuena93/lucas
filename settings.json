@@ -54,7 +54,8 @@
             "eth": {"over": 2, "under": 3},
             "xrp": {"over": 3, "under": 3},
             "gnt": {"over": 3, "under": 4}
-        }
+        },
+        "forecast": 15
     }
     
 
