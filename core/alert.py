@@ -1,4 +1,4 @@
-from pandas import DataFrame, Series
+from pandas import DataFrame, Series, concat
 from json import load
 from time import sleep, time
 from sched import scheduler
@@ -23,95 +23,159 @@ class Alert():
         self.db = DB
         # Setting custom params
         if 'custom' in options:
-            params_set = False
-            while not params_set:
-                coins = input('¿Qué monedas quieres observar? Separalas por una coma o \'all\' para todas: ').replace(' ', '').split(',')
-                # Handling deltas
-                if 'all' in coins:  coins = self.db.retrieveCoins()
-                deltas = {coin: {X: float(entry) for X,entry in zip(['over', 'under'], input('Indica el cambio porcentual separados por un espacio por arriba y por debajo de la moneda {}: '.format(coin)).split())} for coin in coins}
-                valuation = input('¿A que valuación? \nall => General\nlast => ultima\n')
-                period = float(input('¿Cada cuantos minutos quieres ver los cambios?: '))
-                forecast = int(input('¿Cuantos datos adelantes deseas pronosticar?: '))
-                msg = 'Observar cada {} minutos y notificar si los cambios son de:\n'.format(period) + '\n'.join(['{}: +{}%  -{}%'.format(key, deltas[key]['over'], deltas[key]['under']) for key in deltas.keys()]) 
-                prompt = input(msg)
-                params_set = True if prompt.lower() == 's' or prompt == ''  else False
-            self.coins = {coin: self.db.retrieveValuation(coin) for coin in coins}
-            self.myValuation = valuation
-            self.delta = DataFrame(deltas)
-            self.period = period
+            print('Using the defaults of alert_settings.json')
+            with open('alert_settings.json','r') as f:
+                params = load(f)
+            self.coins = params['coins']
+            self.myValuation = params['valuation']
+            self.period = params['period']
+            self.forecast = params['forecast']
+            growth = DataFrame(params['growth'])
+            dif = DataFrame(params['dif'])
+            day = DataFrame(params['day'])
+            custom = DataFrame(params['custom'])
+            self.upperLimit = DataFrame([S.loc['over'] for S in [growth, dif, day, custom]], index=['growth', 'dif', 'day', 'custom'])
+            self.lowerLimit = DataFrame([S.loc['under'] for S in [growth, dif, day, custom]], index=['growth', 'dif', 'day', 'custom'])
+            
         # Default params
         else:
             # Default params
             self.coins = default['coins']
             self.myValuation = default['valuation']
-            self.delta = DataFrame(default['limits'])
             self.period = default['period']
             self.forecast = default['forecast']
-        print(self.__str__())
-        # Configure the thing in memory
-
-        # Configuring the event
-        self.looper = scheduler(time, sleep)
-        self.checkStocks()
+            growth = DataFrame(default['growth'])
+            dif = DataFrame(default['dif'])
+            day = DataFrame(default['day'])
+            custom = DataFrame(default['custom'])
+            self.upperLimit = DataFrame([S.loc['over'] for S in [growth, dif, day, custom]], index=['growth', 'dif', 'day', 'custom'])
+            self.lowerLimit = DataFrame([S.loc['under'] for S in [growth, dif, day, custom]], index=['growth', 'dif', 'day', 'custom'])
+            
+        try:
+            # Configure the thing in memory
+            thunder = Thunder()
+            self.avg = Series({coin: thunder.getWindow(coin)['close'].mean() for coin in self.coins})
+            self.history = DataFrame([
+                Series({coin: 0 for coin in self.coins}, name='growth'),
+                Series({coin: 0 for coin in self.coins}, name='dif'),
+                Series({coin: 0 for coin in self.coins}, name='day'),
+                Series({coin: self.avg[coin] for coin in self.coins}, name='custom')
+            ], index=['growth', 'dif', 'day', 'custom'])
+            # Configuring the event
+            self.canSend = False
+            self.looper = scheduler(time, sleep)
+            self.checkStocks()
+        except AttributeError or TypeError:
+            print('Hubo un error, intentalo de nuevo')
 
     def setCheck(self):
+        self.canSend = True
         self.looper.enter(60 * self.period, 1, self.checkStocks)
         self.looper.run()
         
     def checkStocks(self):
-        # Would be good have a log of it...
-        data = {coin: Fire(coin, Thunder.get5h(symbols[coin])) for coin in self.coins}
-        
-        df = DataFrame({coin: data[coin].valueNow() for coin in self.coins}).append(Series({coin: self.db.retrieveValuation(coin) if 'all' in self.myValuation else self.db.retrieveLastValuation(coin) for coin in self.coins}, name='self'))
-        # Calculate differences (%) between reality and indicator
-        df.loc['growth'] = (df.loc['close'] - df.loc['ema']) * 100 / df.loc['ema']
-        # Calculate differences (%) in the slow growth
-        df.loc['slow'] = (df.loc['close'] - df.loc['sma']) * 100 / df.loc['sma']
-        # Calculate differences (%) between reality and own valuation
-        df.loc['dif'] = (df.loc['close'] - df.loc['self']) * 100 / df.loc['self']
-        # TODO: Aquí va la magia de esto
-        # # Starting with ML
-        # [data[coin].alertForecast(self.forecast) for coin in self.coins]
-        
-        # TODO: Guardar el historial como un diccionario local aquí!!
+        '''
+        Condiciones que debería cumplir para avisar:
+        Brincos grandes de valuación (|growth| > 2 %)
+        Cuando la valuación respecto a la mía sea de X% (propuesta datos externos)
 
+        '''
+        # TODO: Fix en caso de que la data venga incompleta (Cosa del Fire)
+        try:
+            # Would be good have a log of it...
+            data = {coin: Fire(coin, Thunder.get5h(symbols[coin])) for coin in self.coins}
+            
+            df = DataFrame({coin: data[coin].valueNow() for coin in self.coins}).append(Series({coin: self.db.retrieveValuation(coin) if 'all' in self.myValuation else self.db.retrieveLastValuation(coin) for coin in self.coins}, name='self'))
+            # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante EMA
+            df.loc['growth'] = (df.loc['close'] - df.loc['ema']) * 100 / df.loc['ema']
+            # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante SMA
+            df.loc['slow'] = (df.loc['close'] - df.loc['sma']) * 100 / df.loc['sma']
+            # Diferencia entre el valor actual y mi valuación
+            df.loc['dif'] = (df.loc['close'] - df.loc['self']) * 100 / df.loc['self']
+            # Comparativa con lo esperado durante 1 día
+            df.loc['day'] = (df.loc['close'] - self.avg) * 100 / self.avg
+            # TODO: Aquí va la magia de esto
+            # try:
+            #     # Starting with ML
+            #     predict = DataFrame([data[coin].alertForecast(self.forecast) for coin in self.coins], index=self.coins).T
+            #     # print(predict)
+            # except:
+            #     pass
+            # TODO: Guardar el historial como un diccionario local aquí!!
 
-        # Is it a big leap?
-        sell = df.loc['growth'][df.loc['growth'] > self.delta.loc['over']] if len(df.loc['growth'][df.loc['growth'] > self.delta.loc['over']]) > 0 else None
-        buy = df.loc['growth'][df.loc['growth'] < -1 * self.delta.loc['under']] if len(df.loc['growth'][df.loc['growth'] < -1 * self.delta.loc['under']]) > 0 else None
-        # TODO: Guardar en memoria si este aviso ya fue dado
-        # Enviando el mensaje de alerta
-        self.compose({'sell': sell, 'buy': buy, 'tendencies': None}, df.loc[['growth', 'dif']].T)
+            # Is it a big leap?
+            send, msg = self.compareValues(df)
+            # Enviando el mensaje de alerta
+            self.compose(send, msg)
+            self.resume(df.loc[['close', 'growth', 'dif']].T)
+        except:
+            print('Ocurrió un error al recibir los datos')
+            
         self.setCheck()
 
-    def compose(self, params, changes:DataFrame):
-        send = False
-        temp_msg = 'Hola! Un mensaje de Lucas!'
+
+    def compareValues(self, df: DataFrame):
+        '''
+        Comparamos los resultados individuales
+        '''
+        tol = 0.5
+        msg = []
+        new_data = []
+        for label in ['growth', 'dif', 'day']:
+            # Change from alert
+            change = concat([df.loc[label][df.loc[label] > self.upperLimit.loc[label]], 
+                            df.loc[label][df.loc[label] < -self.upperLimit.loc[label]]])
+            # Retrieve the past changes
+            temp_change = self.history.loc[label]
+            new_change = Series([change[coin] if coin in change.index and abs((temp_change[coin] - change[coin])) > tol else temp_change[coin] for coin in temp_change.index], index=temp_change.index, name=label)
+            # las que se van a mensaje:
+            change = change[new_change != temp_change]
+            if len(change) > 0: 
+                msg.append(change)
+            new_data.append(new_change)
+        
+        # Para los customs
+        # Change from alert
+        change = concat([df.loc['close'][df.loc['close'] > self.upperLimit.loc['custom']], 
+                        df.loc['close'][df.loc['close'] < -self.upperLimit.loc['custom']]])
+        # Retrieve the past changes
+        temp_change = self.history.loc['custom']
+        new_change = Series([change[coin] if coin in change.index and abs((temp_change[coin] - change[coin]) * 100 / temp_change[coin]) > tol else temp_change[coin] for coin in temp_change.index], index=temp_change.index, name='custom')
+        # las que se van a mensaje:
+        change = change[new_change != temp_change]
+        if len(change) > 0: 
+            msg.append(change)
+        new_data.append(new_change)
+        new_data = DataFrame(new_data)
+        self.history = DataFrame(new_data)
+        if len(msg) > 0:
+            return True, DataFrame(msg)
+        return False, DataFrame([])
+
+
+    def compose(self, send:bool, msg:DataFrame):
+        temp_msg = 'Hola! Un mensaje de Lucas!\n'
+        header = {'growth': 'crecimiento inesperado', 'dif': 'cambio respecto a valuacion', 'day': 'cambio con respecto al promedio de hoy', 'close': 'cambio Custom', 'custom': 'cambio Custom'}
         quickValuate = lambda coin: self.db.retreiveBalance(self.db.getCoin(coin)) * self.db.retrieveValuation(self.db.getCoin(coin), 'mxn')
-        if type(params['sell']) == Series:
-            send = True
-            temp_msg += '\nVENTA:\n'
-            data = params['sell']
-            # Moneda, cambio%, cantidad invertida => cantidad con valuación actual
-            temp_msg += '\n'.join(['{}: {:.3f}%  {:.2f} => +{:.2f}'.format(data.index[i], value,quickValuate(data.index[i]), (value / 100) * quickValuate(data.index[i])) for (i, value) in enumerate(data)]) + '\n'
-        if type(params['buy']) == Series:
-            send = True
-            temp_msg += '\nCOMPRA:\n'
-            data = params['buy']
-            # Moneda, cambio%, cantidad invertida => cantidad con valuación actual
-            temp_msg += '\n'.join(['{}: {:.3f}%  {:.2f} => {:.2f}'.format(data.index[i], value, quickValuate(data.index[i]), (value / 100) * quickValuate(data.index[i])) for (i, value) in enumerate(data)]) + '\n'
-        if not params['tendencies']:
-            temp_msg += '\nTe sugiero checar las gráficas, no tengo implementado el ML'            
-        if send:
+        for kind in msg.index:
+            # Tiramos los na
+            data = msg.loc[kind].dropna()
+            # Si hay mensaje?
+            if len(data) > 0:
+                send = True
+                temp_msg += '\nHubo un {}:\n'.format(header[kind])
+                temp_msg += '\n'.join(['{}: {:.3f}%  {:.2f} => {:.2f}'.format(data.index[i], value,quickValuate(data.index[i]), (value / 100) * quickValuate(data.index[i])) for (i, value) in enumerate(data)]) + '\n'
+
+        temp_msg += '\nTe sugiero checar las gráficas, no tengo implementado el ML'  
+        if send and self.canSend:
             sendEmail('Lucas Alert!', temp_msg)
-        print(self.resume(changes))
         
 
     def resume(self, change, tendency=None):
         resume_string = '[{}] => '.format(datetime.now().strftime('%H:%M'))
-        return resume_string + " ".join(['{}: {:.2f} | {:.2f} '.format(change.index[i], change['growth'].iloc[i], change['dif'].iloc[i]) for i in range(len(change))])
+        print(resume_string + " ".join(['{}: {:.2f} | {:.2f} | {:.2f}'.format(change.index[i], change['close'].iloc[i], change['growth'].iloc[i], change['dif'].iloc[i]) for i in range(len(change))]))
 
 
     def __str__(self):
-        return 'Observar cada {} minutos y notificar si los cambios son de:\n'.format(self.period) + '\n'.join(['{}: +{}%  -{}%'.format(key, self.delta[key]['over'], self.delta[key]['under']) for key in self.delta.keys()]) 
+        return 'Observar cada {} minutos y notificar si los cambios son por encima de:\n{}\nO debajo de:\n{}'.format(self.period, self.upperLimit, self.lowerLimit)
 

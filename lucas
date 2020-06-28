@@ -1,1 +1,6 @@
-python3 /home/bruno/Documents/Lucas/lucas.py $1 $2 $3
+activate(){
+	. ./venv/bin/activate
+}
+activate
+python3 /home/bruno/Documents/Lucas/lucas.py $1 $2 $3 $4 $5
+deactivate

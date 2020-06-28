@@ -7,24 +7,29 @@ from time import sleep
 import pandas as pd
 matplotlib.use('tkAgg')
 
-from records.DBManager import DataManager, Trade, NewTrade, getValuation
+from records.DBManager import DataManager
 from core.collector import Thunder
 from core.calcs import Fire
 from core.alert import Alert
 from gui.visualizer import Freeze, createFigure
 from gui.gui import startGUI
 
+# TODO: Implementar metodo para obtener la cantidad invertida al momento en una moneda (DBManager)
+# TODO: Concluir la GUI
 
 """
 Entry commands to sys.argv
 snap --[window]: Muestra una ventana de un tiempo determinado
 trade [cantidad][moneda] [cantidad][moneda]: Agrega un trade a base de instrucciones
+funds --[fondos]: Agregar fondos 
+value [coin] --current?True: Valuación actual de moneda con saldo en cartera. Current => Comparativa con el valor actual
 alert --custom(opcional): Crea funcion iterante de alerta
 shell: Initialize a shell
 
 Options:
 --test: Bool => Database en true o en false
 
+Notas
 pyuic5 -x [nombre ui] -o [output.py]
 """
 # TODO: Configuración de shell con sys.argv
@@ -34,7 +39,7 @@ pyuic5 -x [nombre ui] -o [output.py]
 # Declaring globals
 with open('settings.json', 'r') as f:
     settings = load(f)
-db = DataManager()
+db = DataManager(test=True)
 thunder = Thunder()
 # fire = Fire('btc', thunder.getWindow('btc'))
 
@@ -114,7 +119,10 @@ def HandleCommands(commands):
     
     if 'trade' in commands:
         commands.remove('trade')
-        NewTrade(db, commands)
+        print('Has seleccionado agregar un nuevo trade')
+        if len(commands) == 0:
+            commands = [input('Ingresa el inicial: [cantidad][moneda(3caracteres)]: ') for i in [1, 2]]
+        db.addTrade(db.Trade((float(commands[0][:-3]), commands[0][-3:]), (float(commands[1][:-3]), commands[1][-3:])))
     
     if 'funds' in commands:
         if len(options) == 0:
@@ -124,6 +132,19 @@ def HandleCommands(commands):
     if 'alert' in commands:
         createAlert(options)
             
+    if 'value' in commands:
+        commands.remove('value')
+        current = False
+        if len(commands) < 1:
+            commands = [input('De que moneda? ')]
+        if 't' in options:
+            current = True
+        print('Valuacion de {}. Current: {}'.format(commands[0], current))
+        data = db.reportCoin(commands[0], current)
+        print('coin: {}\nValor invertido: {:.3f}@{:.3f}'.format(data['coin'], data['mxnvalue'], data['valuation']))
+        if current:
+            print('Valor actual: {:.3f}@{:.3f}'.format(data['currentvalue'], data['currentvaluation']))
+    
     if 'gui' in commands:
         initGui()
 

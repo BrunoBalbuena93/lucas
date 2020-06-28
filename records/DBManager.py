@@ -12,6 +12,8 @@ wTrades [id, initial, final]: Tipo de transacción de moneda
 trades [id, type(wTrade), initial, final, cost, date,]
 balances [coin, amount, valuation]
 """
+with open('settings.json', 'r') as f:
+    settings = load(f)
 
 
 class DataManager():
@@ -60,7 +62,7 @@ class DataManager():
         # Se obtiene la valuacion
         if len(symbols) == 1:
             # MXN <=> coin
-            valuation = getValuation(symbols[0])
+            valuation = self.getValuation(symbols[0])
         else:
             # coin1 <=> coin2
             raise NotImplementedError
@@ -174,7 +176,6 @@ class DataManager():
             trades = concat([inv_trades, gain_trades])
             valuation_usd = 1 / ((trades['ax'] * trades['xx']).sum() / trades['ax'].sum())
             valuation_mxn = 1 / ((trades['au'] * trades['xu']).sum() / trades['au'].sum())
-            print('{}   {}'.format(valuation_usd, valuation_mxn))
             self.write('UPDATE balances SET valuationusd = ?, valuationmxn= ? WHERE coin=?;', params=[valuation_usd, valuation_mxn, self.getCoin(coin)])
     
 
@@ -354,30 +355,76 @@ class DataManager():
     def __str__(self):
         return self.name
 
+    # Valuation reports
+    def reportCoin(self, coin, current=False):
+        # Retrieve the data from balances
+        data = self.read('SELECT amount, valuationusd, valuationmxn FROM balances WHERE coin={}'.format(self.getCoin(coin)))[0]
+        currentValuation = [1, 1]
+        if current:
+            currentValuation = self.getValuation(settings['coin-symbol'][coin])
+        return {
+            'coin': coin,
+            'mxnvalue': data[0] * data[2],
+            'valuation': data[1],
+            'currentvalue': data[0] * currentValuation[1] * currentValuation[0],
+            'currentvaluation': currentValuation[1]
+        }
 
-# Trade blueprint
-def Trade(income, outcome, funds=0):
-    """
-    Trade funciona similar a una interfaz de javascript. Es un modelo
-    que debe respetarse
-    income/outcome = [cantidad, 'acrónimo de moneda']
-    funds = Se agregan nuevos fondos?
-    """
-    if type(income) != tuple:   income = tuple(income) 
-    if type(outcome) != tuple:  outcome = tuple(outcome)
 
-    output = dict()
-    for (state, value) in set(zip(['init', 'final'],[income, outcome])):
-        try:
-            if len(value[1]) == 3:
-                output[state] = [float(value[0]), value[1].lower()]
-            else:
-                print('La moneda de {} no está bien colocada ({})'.format(state, value[1]))
-        except ValueError:
-            print('El valor de {} no es valido como entrada'.format(value[0]))
-            return None
-    output['addFunds'] = funds
-    return output
+    # Trade blueprint
+    @staticmethod
+    def Trade(income, outcome, funds=0):
+        """
+        Trade funciona similar a una interfaz de javascript. Es un modelo
+        que debe respetarse
+        income/outcome = [cantidad, 'acrónimo de moneda']
+        funds = Se agregan nuevos fondos?
+        """
+        if type(income) != tuple:   income = tuple(income) 
+        if type(outcome) != tuple:  outcome = tuple(outcome)
+
+        output = dict()
+        for (state, value) in set(zip(['init', 'final'],[income, outcome])):
+            try:
+                if len(value[1]) == 3:
+                    output[state] = [float(value[0]), value[1].lower()]
+                else:
+                    print('La moneda de {} no está bien colocada ({})'.format(state, value[1]))
+            except ValueError:
+                print('El valor de {} no es valido como entrada'.format(value[0]))
+                return None
+        output['addFunds'] = funds
+        return output
+
+    @staticmethod
+    def getValuation(symbol: str):
+        '''
+        This retrieves the value of the MXN/USD and coin/USD to calculate a valuation afterwards
+        '''
+        params = {
+            'symbols': 'MXN=X',
+            'fields': 'regularMarketPrice'
+        }
+        req = get('https://query1.finance.yahoo.com/v6/finance/quote', params=params)
+        if req.ok:
+            data = loads(req.content.decode())
+            usdmxn = data['quoteResponse']['result'][0]['regularMarketPrice']
+        else:
+            usdmxn = None
+        # Retrieving the amount of coins/usd
+        params = {
+            'symbols': symbol,
+            'fields': 'regularMarketPrice'
+        }
+        req = get('https://query1.finance.yahoo.com/v6/finance/quote', params=params)
+        if req.ok:
+            data = loads(req.content.decode())
+            coinusd = data['quoteResponse']['result'][0]['regularMarketPrice']
+        else:
+            coinusd = None
+        return [usdmxn, coinusd]
+
+        
 
 
 def Initializer(path='records/records.db'):
@@ -435,39 +482,8 @@ def Initializer(path='records/records.db'):
     conn.close()
 
 
-def getValuation(symbol: str):
-    '''
-    This retrieves the value of the MXN/USD and coin/USD to calculate a valuation afterwards
-    '''
-    params = {
-        'symbols': 'MXN=X',
-        'fields': 'regularMarketPrice'
-    }
-    req = get('https://query1.finance.yahoo.com/v6/finance/quote', params=params)
-    if req.ok:
-        data = loads(req.content.decode())
-        usdmxn = data['quoteResponse']['result'][0]['regularMarketPrice']
-    else:
-        usdmxn = None
-    # Retrieving the amount of coins/usd
-    params = {
-        'symbols': symbol,
-        'fields': 'regularMarketPrice'
-    }
-    req = get('https://query1.finance.yahoo.com/v6/finance/quote', params=params)
-    if req.ok:
-        data = loads(req.content.decode())
-        coinusd = data['quoteResponse']['result'][0]['regularMarketPrice']
-    else:
-        coinusd = None
-    return [usdmxn, coinusd]
 
-# This is a Lucas function
-def NewTrade(db:DataManager, data:list=None):
-    print('Has seleccionado agregar un nuevo trade')
-    if not data:
-        data = [input('Ingresa el inicial: [cantidad][moneda(3caracteres)]: ') for i in [1, 2]]
-    db.addTrade(Trade((float(data[0][:-3]), data[0][-3:]), (float(data[1][:-3]), data[1][-3:])))
+
 
 
 if __name__ == '__main__':

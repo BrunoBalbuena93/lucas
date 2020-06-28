@@ -7,7 +7,7 @@ from sklearn.linear_model import BayesianRidge
 from sklearn.svm import SVR
 from sklearn.isotonic import IsotonicRegression
 from sklearn.model_selection import train_test_split
-
+from scipy.ndimage import gaussian_filter1d
 '''
 Fire is the instance which has all the data
 Here we make all the approaches and ML necessary 
@@ -21,19 +21,17 @@ class Fire():
     def __init__(self, coin:str, df: DataFrame, test:bool=False):
         super(Fire, self).__init__()
         self.coin = coin
-        self.df = df
-        self.tendency = df.apply(lambda x: x[['close', 'open']].mean(), axis=1).dropna(axis=0)
+        self.df = df.dropna()
+        y_ = df.apply(lambda x: x[['close', 'open']].mean(), axis=1).dropna(axis=0)
+        y_ = gaussian_filter1d(y_, y_.std() / 8)
+        self.tendency = Series(y_)#, index=df.index)
         self.sma = self.getSMA(12, self.df['close']).dropna()
         self.ema = self.getEMA(12, self.df['close']).dropna()
         # Este es el escalador de precios (y)
-        self.data_scaler = MinMaxScaler().fit(self.tendency.values.reshape(-1, 1))   
         # self.findChanges()  
-        self.n = 3   
+        self.data_scaler = MinMaxScaler().fit(self.tendency.values.reshape(-1, 1))   
+        self.n = 4  
    
-
-    def findChanges(self):
-        # Here we will count the changes
-        raise NotImplementedError
 
     # Retrieving data 
     def getData(self, t: int=0):
@@ -58,7 +56,7 @@ class Fire():
         svr_rbf = SVR(kernel='rbf', C=1, gamma=0.25)
         svr_rbf.fit(x_train, y_train.reshape(-1))
         svr_score = svr_rbf.score(x_test, y_test.reshape(-1))
-        return bayRidge, svr_rbf, [bayScore, svr_score]
+        return bayRidge, svr_rbf, np.array([bayScore, svr_score])
         
 
     def alertForecast(self, forecast:int):
@@ -72,16 +70,23 @@ class Fire():
         x = np.vander(x.reshape(-1), self.n + 1, increasing=True)
         y_bayes = self.data_scaler.inverse_transform(bayes.predict(x).reshape(-1,1)).reshape(-1)
         y_svr = self.data_scaler.inverse_transform(svr.predict(x).reshape(-1,1)).reshape(-1)
-        print(scores)
-        plt.plot(self.tendency.index, self.tendency.values, label='real')
-        plt.plot(dates, y_bayes, label='bayes')
-        plt.plot(dates, y_svr, label='svr')
-        plt.plot(self.ema.index, self.ema.values, label='ema')
-        plt.plot(self.sma.index, self.sma.values, label='sma')
-        plt.title(self.coin)
-        plt.legend()
-        plt.show()
-        
+        # print('Bayes: {}  SVR: {}'.format(scores[0], scores[1]))
+        # scores = scores.clip(min=0)
+        calculateError = lambda y, fx: 1 - np.sqrt(sum((y - fx) ** 2)) / len(y)
+        bayesError = calculateError(self.ema.values[-forecast:], y_bayes[-2*forecast:-forecast])
+        svrError = calculateError(self.ema.values[-forecast:], y_svr[-2*forecast:-forecast])
+        y_error = (y_bayes[-forecast:] * bayesError  + y_svr[-forecast:] * svrError) / (bayesError + svrError)
+        y_score = (y_bayes[-forecast:] * scores[0] + y_svr[-forecast:] * scores[1]) / sum(scores)
+        y_ = (y_error + y_score) / 2
+        # plt.plot(self.tendency.index, self.tendency.values, label='real')
+        # plt.plot(dates, y_bayes, label='bayes')
+        # plt.plot(dates, y_svr, label='svr')
+        # plt.plot(dates[-forecast:], y_, label='forecast')
+        # plt.plot(self.ema.index, self.ema.values, label='ema')
+        # plt.title(self.coin)
+        # plt.legend()
+        # plt.show()
+        return Series(y_, index=dates[-forecast:])
         
     
     @staticmethod 

@@ -1,6 +1,6 @@
 {
-    "symbols": ["BTC-USD", "ETH-USD", "XRP-USD", "GNT-USD"],
-    "coin-symbol": { "btc": "BTC-USD", "eth": "ETH-USD","xrp": "XRP-USD", "gnt": "GNT-USD"},
+    "symbols": ["BTC-USD", "ETH-USD", "XRP-USD", "GNT-USD", "LTC-USD"],
+    "coin-symbol": { "btc": "BTC-USD", "eth": "ETH-USD","xrp": "XRP-USD", "gnt": "GNT-USD", "ltc": "LTC-USD"},
     "thunder": {
         "interval": "5m",
         "pinch-interval": "3m",
@@ -40,20 +40,37 @@
     },
 
     "alert":{
-        "coins": ["btc","eth", "xrp", "gnt"],
+        "coins": ["btc","eth", "xrp", "gnt", "ltc"],
         "valuation": "all",
         "period": 5,
-        "limits": {
-            "btc": {"over": 2, "under": 3},
-            "eth": {"over": 2, "under": 3},
+
+        "growth": {
+            "btc": {"over": 1, "under": 2},
+            "eth": {"over": 1.3, "under": 2},
             "xrp": {"over": 3, "under": 3},
-            "gnt": {"over": 3, "under": 4}
+            "gnt": {"over": 3, "under": 4},
+            "ltc": {"over": 3, "under": 4}
         },
-        "deltas": {
-            "btc": {"over": 2, "under": 3},
-            "eth": {"over": 2, "under": 3},
+        "dif": {
+            "btc": {"over": 3, "under": 4},
+            "eth": {"over": 3, "under": 4},
+            "xrp": {"over": 3, "under": 8},
+            "gnt": {"over": 10, "under": 4},
+            "ltc": {"over": 3, "under": 4}
+        },
+        "day":{
+            "btc": {"over": 4, "under": 4},
+            "eth": {"over": 5, "under": 4},
             "xrp": {"over": 3, "under": 3},
-            "gnt": {"over": 3, "under": 4}
+            "gnt": {"over": 3, "under": 4},
+            "ltc": {"over": 3, "under": 4}
+        },
+        "custom":{
+            "btc": {"over": 9800, "under": 9250},
+            "eth": {"over": 240, "under": 225},
+            "xrp": {"over": 0.2, "under": 0},
+            "gnt": {"over": 0.08, "under": 0.06},
+            "ltc": {"over": 52, "under": 40}
         },
         "forecast": 15
     }
