@@ -130,7 +130,6 @@ class DataManager():
         """
         Función para actualizar montos. Recibe el mismo objeto trade {init: [cantidad, moneda], final: [cantidad, moneda], 'addFund': bool}
         """
-        # TODO: Cambiar para que haga el update de valuaciones, invested y balances de manera N -1 => N
         # Obteniendo valor de entrada
         _, balanceIn, mxnIn, valUSDIn, valMXNIn = self.retrieveBalance(self.getCoin(trade['init'][1]), many=True)
         _, balanceOut, mxnOut, valUSDOut, valMXNOut = self.retrieveBalance(self.getCoin(trade['final'][1]), many=True)
@@ -287,11 +286,12 @@ class DataManager():
         return inv_trades - gain_trades
 
     # Returns all trades related with 2 coins
-    def tradesOf(self, coin:str, base:str='mxn'):
+    def tradesOf(self, coin:str, dates:bool=False, base:str='mxn'):
+        
         wType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(base), self.getCoin(coin)))[0][0]
-        entries = DataFrame(self.read('SELECT init, final ,coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'coin', 'valuecoinusd', 'valueusdmxn'])
+        entries = DataFrame(self.read('SELECT init, final ,coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'coin', 'valuecoinusd', 'valueusdmxn'], index=[value[0] for value in self.read('SELECT date FROM trades WHERE type={};'.format(wType))])
         wType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(coin), self.getCoin(base)))[0][0]
-        outries = DataFrame(self.read('SELECT final, init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'coin' ,'valuecoinusd', 'valueusdmxn'])
+        outries = DataFrame(self.read('SELECT final, init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'coin' ,'valuecoinusd', 'valueusdmxn'], index=[value[0] for value in self.read('SELECT date FROM trades WHERE type={};'.format(wType))])
         return [entries, outries]
 
         
@@ -369,17 +369,32 @@ class DataManager():
     # Valuation reports
     def reportCoin(self, coin, current=False):
         # Retrieve the data from balances
-        data = self.read('SELECT amount, valuationusd, valuationmxn FROM balances WHERE coin={}'.format(self.getCoin(coin)))[0]
+        data = self.read('SELECT amount, invested, valuationusd, valuationmxn FROM balances WHERE coin={}'.format(self.getCoin(coin)))[0]
         currentValuation = [1, 1]
         if current:
             currentValuation = self.getValuation(settings['coin-symbol'][coin])
         return {
             'coin': coin,
-            'mxnvalue': data[0] * data[2],
-            'valuation': data[1],
+            'mxnvalue': data[1],
+            'valuation': data[2],
             'currentvalue': data[0] * currentValuation[1] * currentValuation[0],
             'currentvaluation': currentValuation[1]
         }
+
+    # Tells how much money it has been invested
+    def reportMXN(self, separate:bool):
+        # TODO: Separar ganancias por moneda
+        # First, retrieve the data from the balances (invested)
+        coinInvested = sum([value[0] for value in self.read('SELECT invested FROM balances WHERE coin>{};'.format(self.getCoin('mxn')))])
+        nonInvested = self.read('SELECT amount FROM balances WHERE coin={};'.format(self.getCoin('mxn')))[0][0]      
+        speiFunds = sum([value[0] for value in self.read('SELECT amount FROM spei WHERE input=1;')])
+        if separate:
+            for coin in ['eth']:#self.retrieveCoins():
+                mIn, mOut = self.tradesOf(coin, dates=True)
+                print(mIn)
+                print(mOut)
+        return {'invested': coinInvested + nonInvested, 'spei': speiFunds, 'gains': coinInvested + nonInvested - speiFunds}
+
 
     # Trade blueprint
     @staticmethod

@@ -29,6 +29,7 @@ class Alert():
             self.coins = params['coins']
             self.myValuation = params['valuation']
             self.period = params['period']
+            self.actions = params['actions']
             self.forecast = params['forecast']
             growth = DataFrame(params['growth'])
             dif = DataFrame(params['dif'])
@@ -44,6 +45,7 @@ class Alert():
             self.myValuation = default['valuation']
             self.period = default['period']
             self.forecast = default['forecast']
+            self.actions = default['actions']
             growth = DataFrame(default['growth'])
             dif = DataFrame(default['dif'])
             day = DataFrame(default['day'])
@@ -96,9 +98,9 @@ class Alert():
             df.loc['day'] = (df.loc['close'] - self.avg) * 100 / self.avg
             # TODO: Aquí va la magia de esto
             # try:
-            #     # Starting with ML
-            #     predict = DataFrame([data[coin].alertForecast(self.forecast) for coin in self.coins], index=self.coins).T
-            #     # print(predict)
+            # Starting with ML
+            predict = DataFrame([data[coin].alertForecast(self.forecast) for coin in self.coins], index=self.coins).T
+            # print(predict)
             # except:
             #     pass
             # TODO: Guardar el historial como un diccionario local aquí!!
@@ -107,7 +109,7 @@ class Alert():
             send, msg = self.compareValues(df)
             # Enviando el mensaje de alerta
             self.compose(send, msg)
-            self.resume(df.loc[['close', 'growth', 'dif']].T)
+            self.resume(df.loc[['close', 'dif']].T)
         except:
             print('Ocurrió un error al recibir los datos')
             
@@ -156,6 +158,7 @@ class Alert():
     def compose(self, send:bool, msg:DataFrame):
         temp_msg = 'Hola! Un mensaje de Lucas!\n'
         header = {'growth': 'crecimiento inesperado', 'dif': 'cambio respecto a valuacion', 'day': 'cambio con respecto al promedio de hoy', 'close': 'cambio Custom', 'custom': 'cambio Custom'}
+        # TODO: Remplazar quickValuate por recibir Invested como tal
         quickValuate = lambda coin: self.db.retreiveBalance(self.db.getCoin(coin)) * self.db.retrieveValuation(self.db.getCoin(coin), 'mxn')
         for kind in msg.index:
             # Tiramos los na
@@ -173,7 +176,7 @@ class Alert():
 
     def resume(self, change, tendency=None):
         resume_string = '[{}] => '.format(datetime.now().strftime('%H:%M'))
-        print(resume_string + " ".join(['{}: {:.2f} | {:.2f} | {:.2f}'.format(change.index[i], change['close'].iloc[i], change['growth'].iloc[i], change['dif'].iloc[i]) for i in range(len(change))]))
+        print(resume_string + " ".join(['{}: {:.3f} | {:.2f}%'.format(change.index[i], change['close'].iloc[i], change['dif'].iloc[i]) for i in range(len(change))]))
 
 
     def __str__(self):

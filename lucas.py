@@ -23,6 +23,7 @@ snap --[window]: Muestra una ventana de un tiempo determinado
 trade [cantidad][moneda] [cantidad][moneda]: Agrega un trade a base de instrucciones
 funds --[fondos]: Agregar fondos 
 value [coin] --current?True: Valuación actual de moneda con saldo en cartera. Current => Comparativa con el valor actual
+inv --g: Cantidad invertidad al momento. g => Separa cantidad de SPEI y cantidad de ganancia
 alert --custom(opcional): Crea funcion iterante de alerta
 shell: Initialize a shell
 
@@ -39,7 +40,7 @@ pyuic5 -x [nombre ui] -o [output.py]
 # Declaring globals
 with open('settings.json', 'r') as f:
     settings = load(f)
-db = DataManager(test=True)
+db = DataManager()
 thunder = Thunder()
 # fire = Fire('btc', thunder.getWindow('btc'))
 
@@ -68,11 +69,6 @@ def newShell():
                 print('Error: ', e)
     print('See you around!')
 
-
-def goLive():
-    import live_session
-
-
 def snapshot(window):
     print('{} window configured'.format(window)) if window else print('Default window configured')
     # Testing
@@ -98,6 +94,17 @@ def createAlert(options):
 def initGui():
     startGUI(db, thunder)
 
+def help():
+    
+    print('''Lucas es el asistente para control de gastos en criptomonedas\n
+    snap --[window]: Muestra una ventana de un tiempo determinado\n
+    trade [cantidad][moneda] [cantidad][moneda]: Agrega un trade a base de instrucciones\n
+    funds --[fondos]: Agregar fondos\n
+    value [coin] --current?True: Valuación actual de moneda con saldo en cartera. Current => Comparativa con el valor actual\n
+    inv --g: Cantidad invertidad al momento. g => Separa cantidad de SPEI y cantidad de ganancia\n
+    alert --custom(opcional): Crea funcion iterante de alerta. En caso de custom, utiliza alert_settings.json\n
+    shell: Inicia una shell con Data Manager y Thunder inicializados
+    ''')
 
 def HandleCommands(commands):
     '''
@@ -106,12 +113,11 @@ def HandleCommands(commands):
     # First, attend the options
     options = [entry.replace('-', '') for entry in commands if '-' in entry]
     [commands.remove('--' + entry) for entry in options]
-    print(options)
-    print(commands)
-
-    if 'live' in commands:
-        goLive()
     
+    if 'h' in options or 'help' in options:
+        help()
+        return
+
     if 'snap' in commands:
         # Check if time declared
         win = options[0] if len(options) > 0 else False
@@ -139,12 +145,16 @@ def HandleCommands(commands):
             commands = [input('De que moneda? ')]
         if 't' in options:
             current = True
-        print('Valuacion de {}. Current: {}'.format(commands[0], current))
         data = db.reportCoin(commands[0], current)
-        print('coin: {}\nValor invertido: {:.3f}@{:.3f}'.format(data['coin'], data['mxnvalue'], data['valuation']))
+        print('coin: {}\nValor invertido: {:.3f} @ {:.3f} {}/usd'.format(data['coin'], data['mxnvalue'], data['valuation'], data['coin']))
         if current:
-            print('Valor actual: {:.3f}@{:.3f}'.format(data['currentvalue'], data['currentvaluation']))
+            print('Valor actual: {:.3f} @ {:.3f} {}/usd'.format(data['currentvalue'], data['currentvaluation'], data['coin']))
     
+    if 'invested' in commands or 'inv' in commands:
+        separate = True if 'g' in options else False
+        data = db.reportMXN(separate)
+        print('Ingresado por SPEI: {:.2f}\nInversiones: {:.2f}\nGanancias: {:.2f}'.format(data['spei'], data['invested'], data['gains']))
+
     if 'gui' in commands:
         initGui()
 
@@ -160,8 +170,5 @@ if __name__ == "__main__":
     # Parsing the options and commands
     commands = argv[1:]
     if len(commands) > 0:
-        # Commands displayed
         HandleCommands(commands)
-    # Probando del 8 - 11 de mayo
-    # For now, this is the operation
     db.close()
