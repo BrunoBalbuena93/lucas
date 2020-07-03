@@ -1,14 +1,19 @@
 {
-    "symbols": ["BTC-USD", "ETH-USD", "XRP-USD", "GNT-USD", "LTC-USD"],
-    "coin-symbol": { "btc": "BTC-USD", "eth": "ETH-USD","xrp": "XRP-USD", "gnt": "GNT-USD", "ltc": "LTC-USD"},
+    "coin-symbol": {
+        "btc": "BTC-USD",
+        "eth": "ETH-USD",
+        "xrp": "XRP-USD",
+        "gnt": "GNT-USD",
+        "ltc": "LTC-USD"
+    },
     "thunder": {
         "interval": "5m",
         "pinch-interval": "3m",
         "period": "5d",
-        "long":{
-            "interval": "1d", 
-        "period": "6mo",
-        "range": "6mo"
+        "long": {
+            "interval": "1d",
+            "period": "1mo",
+            "range": "1mo"
         }
     },
     "freeze": {
@@ -19,13 +24,12 @@
             "high": "#197278",
             "low": "#C44536",
             "volume": "#2E8B57",
-            "tendency": "#EDDDD4"
+            "tendency": "#00b4d8"
         }
-        
     },
-    "fire":{
+    "fire": {
         "window": 15,
-        "colors":{
+        "colors": {
             "background": "#adb5bd",
             "real": "#073B4C",
             "gap": "#118AB2",
@@ -33,47 +37,113 @@
             "bayes": "#FFD166"
         }
     },
-    "gui":{
+    "gui": {
         "colors": {
             "background": "#adb5bd"
         }
     },
-
-    "alert":{
-        "coins": ["btc","eth", "xrp", "gnt", "ltc"],
+    "alert": {
+        "coins": [
+            "btc",
+            "eth",
+            "xrp",
+            "gnt",
+            "ltc"
+        ],
         "valuation": "all",
         "period": 5,
-        "actions": ["buy", "sell"],
+        "actions": [
+            "buy",
+            "sell"
+        ],
         "growth": {
-            "btc": {"over": 1, "under": 2},
-            "eth": {"over": 1.3, "under": 2},
-            "xrp": {"over": 3, "under": 3},
-            "gnt": {"over": 3, "under": 4},
-            "ltc": {"over": 3, "under": 4}
+            "btc": {
+                "over": 1,
+                "under": 2
+            },
+            "eth": {
+                "over": 1.3,
+                "under": 2
+            },
+            "xrp": {
+                "over": 3,
+                "under": 3
+            },
+            "gnt": {
+                "over": 3,
+                "under": 4
+            },
+            "ltc": {
+                "over": 3,
+                "under": 4
+            }
         },
         "dif": {
-            "btc": {"over": 3, "under": 4},
-            "eth": {"over": 3, "under": 4},
-            "xrp": {"over": 3, "under": 8},
-            "gnt": {"over": 10, "under": 4},
-            "ltc": {"over": 3, "under": 4}
+            "btc": {
+                "over": 3,
+                "under": 4
+            },
+            "eth": {
+                "over": 3,
+                "under": 4
+            },
+            "xrp": {
+                "over": 3,
+                "under": 8
+            },
+            "gnt": {
+                "over": 10,
+                "under": 4
+            },
+            "ltc": {
+                "over": 3,
+                "under": 4
+            }
         },
-        "day":{
-            "btc": {"over": 4, "under": 4},
-            "eth": {"over": 5, "under": 4},
-            "xrp": {"over": 3, "under": 3},
-            "gnt": {"over": 3, "under": 4},
-            "ltc": {"over": 3, "under": 4}
+        "day": {
+            "btc": {
+                "over": 4,
+                "under": 4
+            },
+            "eth": {
+                "over": 5,
+                "under": 4
+            },
+            "xrp": {
+                "over": 3,
+                "under": 3
+            },
+            "gnt": {
+                "over": 3,
+                "under": 4
+            },
+            "ltc": {
+                "over": 3,
+                "under": 4
+            }
         },
-        "custom":{
-            "btc": {"over": 9800, "under": 9250},
-            "eth": {"over": 240, "under": 225},
-            "xrp": {"over": 0.2, "under": 0},
-            "gnt": {"over": 0.08, "under": 0.06},
-            "ltc": {"over": 52, "under": 40}
+        "custom": {
+            "btc": {
+                "over": 9800,
+                "under": 9250
+            },
+            "eth": {
+                "over": 240,
+                "under": 225
+            },
+            "xrp": {
+                "over": 0.2,
+                "under": 0
+            },
+            "gnt": {
+                "over": 0.08,
+                "under": 0.06
+            },
+            "ltc": {
+                "over": 52,
+                "under": 40
+            }
         },
         "forecast": 15
     }
-    
-
 }

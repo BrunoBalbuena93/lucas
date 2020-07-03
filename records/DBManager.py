@@ -3,7 +3,7 @@ import datetime as dt
 from os.path import isfile
 from pandas import DataFrame, concat, Series
 from requests import get
-from json import loads, load
+from json import loads, load, dump
 
 """
 Nombres de las tablas:
@@ -49,12 +49,13 @@ class DataManager():
             try:
                 involved_coins.append(self.getCoin(trade[entry][1]))
             except:
+                print("add")
                 self.addCoin(trade[entry][1])
                 involved_coins.append(self.getCoin(trade[entry][1]))
         init_coin = involved_coins[0]
         final_coin = involved_coins[1]
         # Obtenemos los symbols para requests que puedan ser necesarias
-        symbols = [settings['coin-symbol'][trade['init'][1]], settings['coin-symbol'][trade['final'][1]]]
+        symbols = [settings['coin-symbol'][trade[s][1]] for s in ['init', 'final'] if 'mxn' not in trade[s][1]]
         # Se obtiene el tipo de trade
         tradeType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={}'.format(init_coin, final_coin))[0][0]
 
@@ -67,12 +68,18 @@ class DataManager():
             # coin1 <=> coin2
             raise NotImplementedError
         
+        # Calculando valuación [MXN => USD => coin]
+        if 1 == init_coin:
+            coin_valuation = (money[0] / valuation[0]) / money[1]
+        if 1 == final_coin:
+            coin_valuation = (money[1] / valuation[0]) / money[0]
+
         # Se agrega el timestamp
         date = dt.datetime.now().isoformat()
 
         # Se escribe en la base
         command = "INSERT INTO trades (type, init, final, coinusd, mxnusd, date) VALUES (?, ?, ?, ?, ?, ?);"
-        self.write(command, params=[tradeType, money[0], money[1], valuation[1], valuation[0], date])  
+        self.write(command, params=[tradeType, money[0], money[1], coin_valuation, valuation[0], date])  
         print('Trade almacenado: {} {} => {} {}'.format(trade['init'][0], trade['init'][1], trade['final'][0], trade['final'][1]))
         # Actualizando el valor de balances    
         self.updateBalance(trade)
@@ -93,13 +100,13 @@ class DataManager():
         command = "INSERT INTO spei (amount, input, date) VALUES (?, ?, ?);"
         self.write(command, params=[fund, 1, date])
         print('Fondos almacenados correctamente')
-        balance = self.retreiveBalance(self.getCoin('mxn'))
+        balance = self.retrieveBalance('mxn')
         balance += fund
         self.write('UPDATE balances SET amount = ? WHERE coin=?;', params=[balance, self.getCoin('mxn')])
 
 
     # Agregar monedas
-    def addCoin(self, coin):
+    def addCoin(self, coin, symbol:str=''):
         # Se recogen las monedas existentes
         # Se agrega moneda
         coin_add = "INSERT INTO wCoin (coin) VALUES (?)"
@@ -107,6 +114,15 @@ class DataManager():
         if(self.uniqueWrite(coin_add, constrain, paramsCommand=[coin], paramsConstrain=[coin])):
             print('Moneda almacenada')
         coins = self.getCoins()
+        # Agregando moneda a settings
+        if len(symbol) == 0:
+            symbol = input('Ingresa el simbolo de la moneda: ')
+        with open('settings.json', 'r+') as f:
+            settings = load(f)
+            settings['coin-symbol'][coin] = symbol
+            f.seek(0)
+            dump(settings, f)
+            f.truncate()
         new_coin_id = self.getCoin(coin)
         if new_coin_id in coins:
             coins.remove(new_coin_id) 
@@ -131,8 +147,8 @@ class DataManager():
         Función para actualizar montos. Recibe el mismo objeto trade {init: [cantidad, moneda], final: [cantidad, moneda], 'addFund': bool}
         """
         # Obteniendo valor de entrada
-        _, balanceIn, mxnIn, valUSDIn, valMXNIn = self.retrieveBalance(self.getCoin(trade['init'][1]), many=True)
-        _, balanceOut, mxnOut, valUSDOut, valMXNOut = self.retrieveBalance(self.getCoin(trade['final'][1]), many=True)
+        _, balanceIn, mxnIn, valUSDIn, valMXNIn = self.retrieveBalance(trade['init'][1], many=True)
+        _, balanceOut, mxnOut, valUSDOut, valMXNOut = self.retrieveBalance(trade['final'][1], many=True)
         balanceIn -= trade['init'][0]
         balanceOut += trade['final'][0]
         
@@ -219,8 +235,7 @@ class DataManager():
             params = [lastTrade[0], lastTrade[3], gain, dt.datetime.now().isoformat()]
             self.write(command, params)
             print('Ganancia de {}% almacenada correctamente'.format(gain))
-
-            
+     
 
     # Reading functions
     # Coins id
@@ -231,11 +246,11 @@ class DataManager():
             return False
             
 
-    def getCoin(self, coin):
+    def getCoin(self, coin:str):
         try:
             return self.read('SELECT id FROM wCoin WHERE coin=\"{}\"'.format(coin))[0][0]
         except IndexError:
-            return False
+            raise ValueError('La moneda no existe')
 
 
     def retrieveCoins(self):
@@ -245,11 +260,11 @@ class DataManager():
             return None
 
 
-    def retrieveBalance(self, coin, many=False):
+    def retrieveBalance(self, coin:str, many=False):
         try:
             if many:
-                return self.read('SELECT * FROM balances WHERE coin={}'.format(coin))[0]
-            return self.read('SELECT amount FROM balances WHERE coin={}'.format(coin))[0][0]
+                return self.read('SELECT * FROM balances WHERE coin={};'.format(self.getCoin(coin)))[0]
+            return self.read('SELECT amount FROM balances WHERE coin={};'.format(self.getCoin(coin)))[0][0]
         except IndexError:
             return False
 
@@ -273,28 +288,29 @@ class DataManager():
             return None
 
 
-    def retrieveAmount(self, coin):
-        if type(coin) == 'str':
-            coin = self.getCoin(coin)
-        wTrade = self.read('SELECT id FROM wTrade where final={};'.format(coin))[0][0]
+    def retrieveAmount(self, coin: str):
+        wTrade = self.read('SELECT id FROM wTrade where final={};'.format(self.getCoin(coin)))[0][0]
         # Now retrieving all the investment trades
         inv_trades = Series([value[0] for value in self.read('SELECT init FROM trades where type={};'.format(wTrade))]).sum()
         # Retrieve the type of transaction
-        wTrade = self.read('SELECT id FROM wTrade where initial={};'.format(coin))[0][0]
+        wTrade = self.read('SELECT id FROM wTrade where initial={};'.format(self.getCoin(coin)))[0][0]
         # Now retrieving all the investment trades
         gain_trades = Series([value[0] for value in self.read('SELECT final FROM trades where type={};'.format(wTrade))]).sum()
         return inv_trades - gain_trades
 
     # Returns all trades related with 2 coins
-    def tradesOf(self, coin:str, dates:bool=False, base:str='mxn'):
-        
+    def tradesOf(self, coin:str, base:str='mxn'):
         wType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(base), self.getCoin(coin)))[0][0]
         entries = DataFrame(self.read('SELECT init, final ,coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'coin', 'valuecoinusd', 'valueusdmxn'], index=[value[0] for value in self.read('SELECT date FROM trades WHERE type={};'.format(wType))])
         wType = self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(coin), self.getCoin(base)))[0][0]
         outries = DataFrame(self.read('SELECT final, init, coinusd, mxnusd FROM trades WHERE type={};'.format(wType)), columns=['amount', 'coin' ,'valuecoinusd', 'valueusdmxn'], index=[value[0] for value in self.read('SELECT date FROM trades WHERE type={};'.format(wType))])
         return [entries, outries]
 
-        
+    def tradesGUI(self, coin: str):
+        type_1 =self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin('mxn'), self.getCoin(coin)))[0][0]
+        type_2 =self.read('SELECT id FROM wTrade WHERE initial={} AND final={};'.format(self.getCoin(coin), self.getCoin('mxn')))[0][0]
+        data = self.read('SELECT init, final, coinusd, date FROM trades WHERE type={} OR type={} ORDER BY date DESC;'.format(type_1, type_2))
+        return DataFrame([Series([value[0], value[1], value[2]], name=value[3]) for value in data])
 
     # Funciones de consulta
     def getSuggestion(self, coin, threshold):

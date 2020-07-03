@@ -40,7 +40,7 @@ pyuic5 -x [nombre ui] -o [output.py]
 # Declaring globals
 with open('settings.json', 'r') as f:
     settings = load(f)
-db = DataManager()
+db = DataManager(test=True)
 thunder = Thunder()
 # fire = Fire('btc', thunder.getWindow('btc'))
 

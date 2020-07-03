@@ -50,7 +50,7 @@ class Freeze():
     def prepPlot(self):
         self.ax.cla()
         # Setting title
-        self.ax.set_title('Coin: {}  {} - {}'.format(self.coin, dt.datetime.fromtimestamp(self.window).strftime('%Y-%m-%d %H:%M')[2:], dt.datetime.now().strftime('%Y-%m-%d %H:%M')[2:]))
+        # self.ax.set_title('Coin: {}  {} - {}'.format(self.coin, dt.datetime.fromtimestamp(self.window).strftime('%Y-%m-%d %H:%M')[2:], dt.datetime.now().strftime('%Y-%m-%d %H:%M')[2:]))
         # self.ax.set_xlim([self.window, int(dt.datetime.now().timestamp())])
         self.ax.set_facecolor(self.color['background'])
         self.ax.grid()
@@ -63,6 +63,7 @@ class Freeze():
 
     def plot2Gui(self, df):
         # Dado que las velas no se ven tanto, opinaria por hacer una curva de tendencia con sombeado, igual es más rapida
+        self.ax.set_title('Coin: {}  {} - {}'.format(self.coin, dt.datetime.fromtimestamp(df.index[0]).strftime('%Y-%m-%d %H:%M')[2:], dt.datetime.fromtimestamp(df.index[-1]).strftime('%Y-%m-%d %H:%M')[2:]))
         self.ax.set_facecolor(self.color['background'])
         self.ax2 = self.ax.twinx()
         self.ax2.grid(b=True, which='major', color=self.color['high'], linestyle='-')
