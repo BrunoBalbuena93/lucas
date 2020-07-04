@@ -41,11 +41,13 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.centralwidget.setObjectName("centralwidget")
         # Configurando color
         self.centralwidget.setStyleSheet("background-color: \"{}\";".format(params['colors']['background']))
+        # Tabs
         self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
         self.tabWidget.setGeometry(QtCore.QRect(6, 9, 771, 501))
         self.tabWidget.setObjectName("tabWidget")
         self.status = QtWidgets.QWidget()
         self.status.setObjectName("status")
+        # Status Tab
         self.addTrade = QtWidgets.QPushButton(self.status)
         self.addTrade.setGeometry(QtCore.QRect(30, 420, 101, 28))
         self.addTrade.setObjectName("addTrade")
@@ -69,12 +71,12 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.addFunds = QtWidgets.QPushButton(self.status)
         self.addFunds.setGeometry(QtCore.QRect(150, 420, 101, 28))
         self.addFunds.setObjectName("addFunds")
-        # TODO: Progress bar
         self.line = QtWidgets.QFrame(self.status)
         self.line.setGeometry(QtCore.QRect(30, 240, 341, 16))
         self.line.setFrameShape(QtWidgets.QFrame.HLine)
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line.setObjectName("line")
+        # Etiquetas
         self.lbl_totalAmount = QtWidgets.QLabel(self.status)
         self.lbl_totalAmount.setGeometry(QtCore.QRect(40, 60, 91, 21))
         self.lbl_totalAmount.setObjectName("lbl_totalAmount")
@@ -88,10 +90,10 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.Update.setGeometry(QtCore.QRect(520, 420, 101, 28))
         self.Update.setObjectName("Update")
         self.totalAmount = QtWidgets.QLabel(self.status)
-        self.totalAmount.setGeometry(QtCore.QRect(160, 60, 90, 16))
+        self.totalAmount.setGeometry(QtCore.QRect(160, 60, 200, 16))
         self.totalAmount.setObjectName("totalAmount")
         self.currentValue = QtWidgets.QLabel(self.status)
-        self.currentValue.setGeometry(QtCore.QRect(160, 90, 90, 16))
+        self.currentValue.setGeometry(QtCore.QRect(160, 90, 200, 16))
         self.currentValue.setObjectName("currentValue")
         self.valuation = QtWidgets.QLabel(self.status)
         self.valuation.setGeometry(QtCore.QRect(160, 120, 90, 16))
@@ -103,7 +105,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.lbl_change_2.setGeometry(QtCore.QRect(40, 190, 111, 21))
         self.lbl_change_2.setObjectName("lbl_change_2")
         self.changeAll = QtWidgets.QLabel(self.status)
-        self.changeAll.setGeometry(QtCore.QRect(160, 160, 70, 16))
+        self.changeAll.setGeometry(QtCore.QRect(160, 160, 200, 16))
         self.changeAll.setObjectName("changeAll")
         self.changeLast = QtWidgets.QLabel(self.status)
         self.changeLast.setGeometry(QtCore.QRect(160, 190, 70, 16))
@@ -177,6 +179,9 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         MainWindow.setStatusBar(self.statusbar)
         # self.actionExportar = QtWidgets.QAction(MainWindow)
         # self.actionExportar.setObjectName("actionExportar")
+        self.actionSalir = QtWidgets.QAction(MainWindow)
+        self.actionSalir.setObjectName('actionSalir')
+        self.actionSalir.triggered.connect(self.CloseGUI)
         self.actionShell = QtWidgets.QAction(MainWindow)
         self.actionShell.setObjectName("actionShell")
         self.addNewTrade = QtWidgets.QAction(MainWindow)
@@ -191,6 +196,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.addNewAlert = QtWidgets.QAction('addNewAlert')
         self.addNewAlert.setObjectName('addNewAlert')
         self.addNewAlert.triggered.connect(self.addNewAlertOperation)
+        self.menuFile.addAction(self.actionSalir)
         self.menuHerramientas.addAction(self.actionShell)
         self.menuAcciones.addAction(self.addNewTrade)
         self.menuAcciones.addAction(self.addNewFunds)
@@ -216,7 +222,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.addFunds.setText(_translate("MainWindow", "Agregar Fondos"))
         self.lbl_totalAmount.setText(_translate("MainWindow", "Monto total:"))
         self.lbl_valueNow.setText(_translate("MainWindow", "Valor Actual:"))
-        self.lbl_valuation.setText(_translate("MainWindow", "Valuación Actual:"))
+        self.lbl_valuation.setText(_translate("MainWindow", "Token"))
         self.Update.setText(_translate("MainWindow", "Actualizar"))
         self.comboBox.addItem('Selecciona una moneda')
         self.comboBox_3.addItem('Selecciona una moneda')
@@ -227,8 +233,8 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.totalAmount.setText(_translate("MainWindow", ""))
         self.currentValue.setText(_translate("MainWindow", ""))
         self.valuation.setText(_translate("MainWindow", ""))
-        self.lbl_change.setText(_translate("MainWindow", "% General"))
-        self.lbl_change_2.setText(_translate("MainWindow", "Monedas:"))
+        self.lbl_change.setText(_translate("MainWindow", "Max / Min"))
+        self.lbl_change_2.setText(_translate("MainWindow", "Recomendación"))
         self.changeAll.setText(_translate("MainWindow", ""))
         self.changeLast.setText(_translate("MainWindow", ""))
         self.ChangeDates.setText(_translate("MainWindow", "&Cambiar fechas"))
@@ -249,6 +255,9 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.menuHerramientas.setTitle(_translate("MainWindow", "Herramientas"))
         self.menuAcciones.setTitle(_translate("MainWindow", "Acciones"))
         # self.actionExportar.setText(_translate("MainWindow", "Exportar"))
+        self.actionSalir.setText(_translate("MainWindow", "Salir"))
+        self.actionShell.setStatusTip(_translate("MainWindow", "Salir de la aplicación"))
+        self.actionSalir.setShortcut(_translate("MainWindow", "Esc"))
         self.actionShell.setText(_translate("MainWindow", "Shell"))
         self.actionShell.setStatusTip(_translate("MainWindow", "Iniciar una shell en lucas"))
         self.actionShell.setShortcut(_translate("MainWindow", "Ctrl+Alt+S"))
@@ -270,6 +279,10 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
     def drawStatus(self):
         # Retrieving the coin
         coin = self.comboBox.currentText()
+        # Ploting the graphs
+        historical = self.thunder.getHistorical(coin)
+        self.Graph1.plot(coin, data=self.thunder.get5h(settings['coin-symbol'][coin]))
+        self.Graph2.plot(coin, data=historical)
         # Retrieval of variables
         _, coinAmount, totalAmount, dbValuationUSD, dbValuationMXN = self.db.retrieveBalance(coin, many=True)
         dbLastValuationUSD = self.db.retrieveLastValuation(coin)
@@ -277,14 +290,11 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         USDMXN = self.thunder.getUSDValuation()
         # Now loading the data into the labels
         _translate = QtCore.QCoreApplication.translate
-        self.totalAmount.setText(_translate("MainWindow", '{:.2f} mxn'.format(totalAmount)))
-        self.currentValue.setText(_translate("MainWindow", '{:.2f} mxn'.format(USDMXN * requestValuation * coinAmount)))
-        self.valuation.setText(_translate("MainWindow", '{:.2f} usd'.format(dbValuationUSD)))
-        self.changeAll.setText(_translate("MainWindow", '{:.4f}%'.format((requestValuation - dbValuationUSD) * 100 / dbValuationUSD)))
-        self.changeLast.setText(_translate("MainWindow", '{:.4f}'.format(coinAmount)))
-        # Ploting the graphs
-        self.Graph1.plot(coin, data=self.thunder.get5h(settings['coin-symbol'][coin]))
-        self.Graph2.plot(coin, data=self.thunder.getHistorical(coin))
+        self.totalAmount.setText(_translate("MainWindow", '{:.2f} mxn @ {:.3f} usd/{}'.format(totalAmount, dbValuationUSD, coin)))
+        self.currentValue.setText(_translate("MainWindow", '{:.2f} mxn | {:.4f}%'.format(USDMXN * requestValuation * coinAmount, (requestValuation - dbValuationUSD) * 100 / dbValuationUSD)))
+        self.valuation.setText(_translate("MainWindow", '{:.6f} {}'.format(coinAmount, coin)))
+        self.changeAll.setText(_translate("MainWindow", '{:.4f} / {:.4f}'.format(historical['close'].max(), historical['close'].min())))
+        self.changeLast.setText(_translate("MainWindow", '{}'.format('Pendiente')))
         # Populating table
         data = self.db.tradesGUI(coin)
         self.tableWidget.setColumnCount(3)
@@ -298,10 +308,10 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
 
     def addNewCoinOperation(self):
-        print('Add new coin')
+        raise NotImplementedError('Agregar moneda')
 
     def addNewAlertOperation(self):
-        print('Configure new alert')
+        raise NotImplementedError('Configurar la alerta')
 
     def CloseGUI(self):
         msg = QtWidgets.QMessageBox()
