@@ -22,16 +22,18 @@ class Fire():
         super(Fire, self).__init__()
         self.coin = coin
         self.df = df.dropna()
-        y_ = df.apply(lambda x: x[['close', 'open']].mean(), axis=1).dropna(axis=0)
-        y_ = gaussian_filter1d(y_, y_.std() / 8)
-        self.tendency = Series(y_)#, index=df.index)
         self.sma = self.getSMA(12, self.df['close']).dropna()
         self.ema = self.getEMA(12, self.df['close']).dropna()
         # Este es el escalador de precios (y)
         # self.findChanges()  
-        self.data_scaler = MinMaxScaler().fit(self.tendency.values.reshape(-1, 1))   
         self.n = 4  
-   
+        try:
+            y_ = df.apply(lambda x: x[['close', 'open']].mean(), axis=1).dropna(axis=0)
+            y_ = gaussian_filter1d(y_, y_.std() / 8)
+            self.tendency = Series(y_)#, index=df.index)
+            self.data_scaler = MinMaxScaler().fit(self.tendency.values.reshape(-1, 1))   
+        except:
+            self.tendency = None
 
     # Retrieving data 
     def getData(self, t: int=0):

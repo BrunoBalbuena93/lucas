@@ -83,35 +83,35 @@ class Alert():
 
         '''
         # TODO: Fix en caso de que la data venga incompleta (Cosa del Fire)
-        try:
-            # Would be good have a log of it...
-            data = {coin: Fire(coin, Thunder.get5h(symbols[coin])) for coin in self.coins}
-            
-            df = DataFrame({coin: data[coin].valueNow() for coin in self.coins}).append(Series({coin: self.db.retrieveValuation(coin) if 'all' in self.myValuation else self.db.retrieveLastValuation(coin) for coin in self.coins}, name='self'))
-            # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante EMA
-            df.loc['growth'] = (df.loc['close'] - df.loc['ema']) * 100 / df.loc['ema']
-            # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante SMA
-            df.loc['slow'] = (df.loc['close'] - df.loc['sma']) * 100 / df.loc['sma']
-            # Diferencia entre el valor actual y mi valuación
-            df.loc['dif'] = (df.loc['close'] - df.loc['self']) * 100 / df.loc['self']
-            # Comparativa con lo esperado durante 1 día
-            df.loc['day'] = (df.loc['close'] - self.avg) * 100 / self.avg
-            # TODO: Aquí va la magia de esto
-            # try:
-            # Starting with ML
-            predict = DataFrame([data[coin].alertForecast(self.forecast) for coin in self.coins], index=self.coins).T
-            # print(predict)
-            # except:
-            #     pass
-            # TODO: Guardar el historial como un diccionario local aquí!!
+        # try:
+        # Would be good have a log of it...
+        data = {coin: Fire(coin, Thunder.get5h(symbols[coin])) for coin in self.coins}
+        
+        df = DataFrame({coin: data[coin].valueNow() for coin in self.coins}).append(Series({coin: self.db.retrieveValuation(coin) if 'all' in self.myValuation else self.db.retrieveLastValuation(coin) for coin in self.coins}, name='self'))
+        # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante EMA
+        df.loc['growth'] = (df.loc['close'] - df.loc['ema']) * 100 / df.loc['ema']
+        # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante SMA
+        df.loc['slow'] = (df.loc['close'] - df.loc['sma']) * 100 / df.loc['sma']
+        # Diferencia entre el valor actual y mi valuación
+        df.loc['dif'] = (df.loc['close'] - df.loc['self']) * 100 / df.loc['self']
+        # Comparativa con lo esperado durante 1 día
+        df.loc['day'] = (df.loc['close'] - self.avg) * 100 / self.avg
+        # TODO: Aquí va la magia de esto
+        # try:
+        # Starting with ML
+        # predict = DataFrame([data[coin].alertForecast(self.forecast) for coin in self.coins], index=self.coins).T
+        # print(predict)
+        # except:
+        #     pass
+        # TODO: Guardar el historial como un diccionario local aquí!!
 
-            # Is it a big leap?
-            send, msg = self.compareValues(df)
-            # Enviando el mensaje de alerta
-            self.compose(send, msg)
-            self.resume(df.loc[['close', 'dif']].T)
-        except:
-            print('Ocurrió un error al recibir los datos')
+        # Is it a big leap?
+        send, msg = self.compareValues(df)
+        # Enviando el mensaje de alerta
+        self.compose(send, msg)
+        self.resume(df.loc[['close', 'dif']].T)
+        # except:
+        #     print('Ocurrió un error al recibir los datos')
             
         self.setCheck()
 
@@ -120,7 +120,7 @@ class Alert():
         '''
         Comparamos los resultados individuales
         '''
-        tol = 0.5
+        tol = 0.3
         msg = []
         new_data = []
         for label in ['growth', 'dif', 'day']:
@@ -159,7 +159,7 @@ class Alert():
         temp_msg = 'Hola! Un mensaje de Lucas!\n'
         header = {'growth': 'crecimiento inesperado', 'dif': 'cambio respecto a valuacion', 'day': 'cambio con respecto al promedio de hoy', 'close': 'cambio Custom', 'custom': 'cambio Custom'}
         # TODO: Remplazar quickValuate por recibir Invested como tal
-        quickValuate = lambda coin: self.db.retreiveBalance(self.db.getCoin(coin)) * self.db.retrieveValuation(self.db.getCoin(coin), 'mxn')
+        quickValuate = lambda coin: self.db.retrieveBalance(coin, many=True)[2]
         for kind in msg.index:
             # Tiramos los na
             data = msg.loc[kind].dropna()

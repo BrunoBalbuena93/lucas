@@ -36,11 +36,12 @@ pyuic5 -x [nombre ui] -o [output.py]
 # TODO: Configuración de shell con sys.argv
 # TODO: Traceback de inversion
 # TODO: Antes probar con un script aparte e importarlo como con temp. El tracker en tiempo real parece que tendrá que ser una gui
+# TODO: Agregar funcion all a prev
 
 # Declaring globals
 with open('settings.json', 'r') as f:
     settings = load(f)
-db = DataManager(test=True)
+db = DataManager()
 thunder = Thunder()
 # fire = Fire('btc', thunder.getWindow('btc'))
 
@@ -91,6 +92,29 @@ def snapshot(window):
 def createAlert(options):
     Alert(options, db)
 
+def preview(values):
+    '''
+    Hace un forecast de cuanto estarías generando extra
+    '''
+    db.gainForecast(*values)
+    
+def getGains(coin:str, separate:bool):
+    '''
+    Aquí obtiene las ganancias producidas por los trades.
+    coin =>
+        None: De todas las monedas
+        [coin]: De una moneda en específico
+    separate => 
+        True: Te da la cantidad y porcentaje de cada operación de cada moneda
+        False: Te da el valor neto de todas las ganancias
+    '''
+    data = db.getCoinGains(coin, separate) if coin else db.getAllGains(separate)
+    if separate:
+        print('Las ganancias separadas fueron:\n' + '\n'.join(['{}: {:.2f} | {:.4f}%'.format(data['coin'].iloc[i], data['amount'].iloc[i], data['gain'].iloc[i]) for i in range(len(data))]))
+        print('La ganancia total es de {:.2f} MXN'.format(data['amount'].sum()))
+    else:
+        print('La ganancia total es {:.2f}mxn | {:.4f}%  coins={}'.format(data['amount'], data['avg_gain'], data.name))
+
 def initGui():
     startGUI(db, thunder)
 
@@ -103,6 +127,8 @@ def help():
     value [coin] --current?True: Valuación actual de moneda con saldo en cartera. Current => Comparativa con el valor actual\n
     inv --g: Cantidad invertidad al momento. g => Separa cantidad de SPEI y cantidad de ganancia\n
     alert --custom(opcional): Crea funcion iterante de alerta. En caso de custom, utiliza alert_settings.json\n
+    gains [coin] --s: Ganancias totales, si agregas coin te da de esa moneda en específico, s las separa por coin\n
+    prev [amount][coin] [coin_vendiendo] --all: Te dice la ganancia real que obtendrías dado un trade, es decir, vendiendo X cantidad de Y moneda, cuanto ganarías con que porcentaje.\n
     shell: Inicia una shell con Data Manager y Thunder inicializados
     ''')
 
@@ -151,9 +177,29 @@ def HandleCommands(commands):
             print('Valor actual: {:.3f} @ {:.3f} {}/usd'.format(data['currentvalue'], data['currentvaluation'], data['coin']))
     
     if 'invested' in commands or 'inv' in commands:
+        # FIXME: Arreglar esto
         separate = True if 'g' in options else False
         data = db.reportMXN(separate)
         print('Ingresado por SPEI: {:.2f}\nInversiones: {:.2f}\nGanancias: {:.2f}'.format(data['spei'], data['invested'], data['gains']))
+
+    if 'prev' in commands:
+        commands.remove('prev')
+        if 'all' in options:
+            _, balanceIn, mxnIn, valUSDIn, valMXNIn = db.retrieveBalance(commands[1], many=True)
+            data = [balanceIn, commands[1], commands[1]]
+        elif len(commands) == 2:
+            data = [float(commands[0][:-3]), commands[0][-3:], commands[1]]
+        else:
+            temp = input('Escribe la cantidad a estimar junto con la moneda: ')
+            coin = input('Escribe la moneda de origen: ')
+            data = [float(temp[:-3]), temp[-3:], coin]        
+        preview(data)
+    
+    if 'gains' in commands:
+        commands.remove('gains')
+        separate = True if len(options) > 0 else False
+        coin = commands[0] if len(commands) > 0 else None
+        getGains(coin, separate)
 
     if 'gui' in commands:
         initGui()

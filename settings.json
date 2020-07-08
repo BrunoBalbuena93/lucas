@@ -92,7 +92,7 @@
                 "under": 8
             },
             "gnt": {
-                "over": 10,
+                "over": 5,
                 "under": 4
             },
             "ltc": {
@@ -124,12 +124,12 @@
         },
         "custom": {
             "btc": {
-                "over": 9800,
-                "under": 9250
+                "over": 9600,
+                "under": 9050
             },
             "eth": {
                 "over": 240,
-                "under": 225
+                "under": 220
             },
             "xrp": {
                 "over": 0.2,

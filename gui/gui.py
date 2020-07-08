@@ -300,7 +300,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.tableWidget.setColumnCount(3)
         self.tableWidget.setRowCount(len(data))
         # Headers
-        self.tableWidget.setHorizontalHeaderLabels(['Inicial', 'Final', 'Val'])
+        self.tableWidget.setHorizontalHeaderLabels(['Inicial', 'Final', 'Valuación'])
         self.tableWidget.setVerticalHeaderLabels([value[2:10] for value in data.index])
         for i in range(len(data)):
             [self.tableWidget.setItem(i, j, QtWidgets.QTableWidgetItem(str(data[j].iloc[i]))) for j, col in enumerate(data.iloc[i])]
