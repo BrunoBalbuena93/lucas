@@ -33,7 +33,7 @@ Options:
 Notas
 pyuic5 -x [nombre ui] -o [output.py]
 """
-# TODO: Configuración de shell con sys.argv
+# TODO: Agregar coin al snapshot
 # TODO: Traceback de inversion
 # TODO: Antes probar con un script aparte e importarlo como con temp. El tracker en tiempo real parece que tendrá que ser una gui
 # TODO: Agregar funcion all a prev
@@ -53,6 +53,10 @@ thunder = Thunder()
 
 
 def newShell():
+    '''
+    Genera una shell para trabajar
+    '''
+    # TODO: Configurar las flechas de navegacion
     print('Interactive shell activated')
     count = [0, 0]
     while True:
@@ -70,26 +74,23 @@ def newShell():
                 print('Error: ', e)
     print('See you around!')
 
-def snapshot(window):
-    print('{} window configured'.format(window)) if window else print('Default window configured')
-    # Testing
+def snapshot(coin:str, window):
+    '''
+    Genera una gráfica de velas de la ventana determinada, en caso de que la ventana no esté especificada, es de 5h
+    '''
+    print('{} ventana configurada'.format(window)) if window else print('Default window configured')
     fig, ax = createFigure()
-    fire = Fire('btc', thunder.getWindow('btc'))
-    f = Freeze(ax, 'BTC-USD', fire, timespan=window) if window else Freeze(ax, 'BTC-USD', fire, timespan='5h')
+    fire = Fire(coin, thunder.getWindow(coin))
+    f = Freeze(ax, settings['coin-symbol'][coin], fire, timespan=window) if window else Freeze(ax, settings['coin-symbol'][coin], fire, timespan='5h')
     f.plotCoin()
-    f.plotValuation(db.retrieveValuation('btc'))
-
-    # Complete
-    # fig, axes = createFigure(rows=3, cols=1)
-    # fires = [Fire(coin, thunder.getWindow((coin))) for coin in coins]
-    # freeze_axes = [Freeze(ax, coin, fire, timespan=window) if window else Freeze(ax, coin, fire) for (ax, fire, coin) in set(zip(axes, fires, coins))]
-    # [f.plotCoin() for f in freeze_axes]
-    # [f.plotValuation(db.retrieveValuation(coin)) for (f, coin) in set(zip(freeze_axes, coins))]
-
+    f.plotValuation(db.retrieveValuation(coin))
     fig.tight_layout()
     plt.show()
    
 def createAlert(options):
+    '''
+    Crea una alerta con logs
+    '''
     Alert(options, db)
 
 def preview(values):
@@ -98,6 +99,26 @@ def preview(values):
     '''
     db.gainForecast(*values)
     
+def quickValue(params:dict):
+    '''
+    Aveces hay discrepancias entre tradeview/yahoo finance y mi plataforma, así que esto es para ver la 
+    valuacion que me está dando mi plataforma
+    '''
+    usdval = thunder.getUSDValuation()
+    if 'mxn' in params['init'][1]:
+        # Caso que mxn sea la inicial
+        platformValuation = (params['init'][0] / usdval) / params['final'][0]
+        coin = 'usd/' + params['final'][1]
+    elif 'mxn' in params['final'][1]: 
+        # Caso que mxn sea la final
+        platformValuation = (params['final'][0] / usdval) / params['init'][0]
+        coin = 'usd/' + params['init'][1]
+    else:
+        # Caso que sea entre monedas
+        raise NotImplementedError
+    print('La valuación que te estan dando es {:.3f} {}'.format(platformValuation, coin))
+    
+
 def getGains(coin:str, separate:bool):
     '''
     Aquí obtiene las ganancias producidas por los trades.
@@ -109,11 +130,14 @@ def getGains(coin:str, separate:bool):
         False: Te da el valor neto de todas las ganancias
     '''
     data = db.getCoinGains(coin, separate) if coin else db.getAllGains(separate)
-    if separate:
-        print('Las ganancias separadas fueron:\n' + '\n'.join(['{}: {:.2f} | {:.4f}%'.format(data['coin'].iloc[i], data['amount'].iloc[i], data['gain'].iloc[i]) for i in range(len(data))]))
-        print('La ganancia total es de {:.2f} MXN'.format(data['amount'].sum()))
-    else:
-        print('La ganancia total es {:.2f}mxn | {:.4f}%  coins={}'.format(data['amount'], data['avg_gain'], data.name))
+    try:
+        if separate:
+            print('Las ganancias separadas fueron:\n' + '\n'.join(['{}: {:.2f} | {:.4f}%'.format(data['coin'].iloc[i], data['amount'].iloc[i], data['gain'].iloc[i]) for i in range(len(data))]))
+            print('La ganancia total es de {:.2f} MXN | {:.4f}%'.format(data['amount'].sum(), (data['amount'] * data['gain']).sum() / data['amount'].sum()))
+        else:
+            print('La ganancia total es {:.2f}mxn | {:.4f}%  coins={}'.format(data['amount'], data['avg_gain'], data.name))
+    except:
+        print('Aun no generas nada, pero paciencia rey, ya saldrá')
 
 def initGui():
     startGUI(db, thunder)
@@ -121,14 +145,15 @@ def initGui():
 def help():
     
     print('''Lucas es el asistente para control de gastos en criptomonedas\n
-    snap --[window]: Muestra una ventana de un tiempo determinado\n
+    snapshot/snap coin --[window]: Muestra una ventana de un tiempo determinado\n
     trade [cantidad][moneda] [cantidad][moneda]: Agrega un trade a base de instrucciones\n
     funds --[fondos]: Agregar fondos\n
     value [coin] --current?True: Valuación actual de moneda con saldo en cartera. Current => Comparativa con el valor actual\n
-    inv --g: Cantidad invertidad al momento. g => Separa cantidad de SPEI y cantidad de ganancia\n
+    quickvalue [amount][coin] [amount][coin]: Te da una valuacion sobre la moneda, una de ellas debe ser mxn.\n
+    inv --[s]: Cantidad invertidad al momento. g => Separa cantidad de SPEI y cantidad de ganancia\n
     alert --custom(opcional): Crea funcion iterante de alerta. En caso de custom, utiliza alert_settings.json\n
     gains [coin] --s: Ganancias totales, si agregas coin te da de esa moneda en específico, s las separa por coin\n
-    prev [amount][coin] [coin_vendiendo] --all: Te dice la ganancia real que obtendrías dado un trade, es decir, vendiendo X cantidad de Y moneda, cuanto ganarías con que porcentaje.\n
+    prev [coin_vendiendo] --all/[amount][coin]: Te dice la ganancia real que obtendrías dado un trade, es decir, vendiendo X cantidad de Y moneda, cuanto ganarías con que porcentaje.\n
     shell: Inicia una shell con Data Manager y Thunder inicializados
     ''')
 
@@ -136,34 +161,45 @@ def HandleCommands(commands):
     '''
     In order to keep the main clean, I'm migrating all the handling here
     '''
+    # First, retrieve the raw command
+    command = commands.pop(0)
     # First, attend the options
     options = [entry.replace('-', '') for entry in commands if '-' in entry]
     [commands.remove('--' + entry) for entry in options]
     
-    if 'h' in options or 'help' in options:
+    if 'h' == command or 'help' in command or 'h' in options or 'help' in options:
         help()
         return
 
-    if 'snap' in commands:
+    if 'snap' in command:
+        # Getting coin
+        coin = commands[0] if len(commands) > 0 else input('Selecciona de que moneda deseas el snapshot: ')
         # Check if time declared
         win = options[0] if len(options) > 0 else False
-        snapshot(win)
+        snapshot(coin, win)
     
-    if 'trade' in commands:
-        commands.remove('trade')
+    if 'trade' in command or 't' == command:
         print('Has seleccionado agregar un nuevo trade')
         if len(commands) == 0:
             commands = [input('Ingresa el inicial: [cantidad][moneda(3caracteres)]: ') for i in [1, 2]]
         db.addTrade(db.Trade((float(commands[0][:-3]), commands[0][-3:]), (float(commands[1][:-3]), commands[1][-3:])))
     
-    if 'funds' in commands:
-        if len(options) == 0:
-            options = [input('¿De cuanto fue el deposito?  ')]
-        db.addFund(float(options[0]))
+    if 'funds' in command or 'f' == command:
+        fund = commands[0] if len(commands) > 0 else float(input('¿De cuanto fue el deposito?  '))
+        db.addFund(fund)
 
-    if 'alert' in commands:
+    if 'alert' in command:
         createAlert(options)
             
+    if 'quick' in command or 'qv' == command:
+        try:
+            data = db.Trade((commands[0][:-3], commands[0][-3:]), (commands[1][:-3], commands[1][-3:]))
+        except IndexError:
+            temp_1 = input('Dame la cantidad y moneda de origen: ')
+            temp_2 = input('Dame la cantidad y moneda de destino: ')
+            data = db.Trade((temp_1[:-3], temp_1[-3:]), (temp_2[:-3], temp_2[-3:]))
+        quickValue(data)
+        
     if 'value' in commands:
         commands.remove('value')
         current = False
@@ -185,10 +221,12 @@ def HandleCommands(commands):
     if 'prev' in commands:
         commands.remove('prev')
         if 'all' in options:
-            _, balanceIn, mxnIn, valUSDIn, valMXNIn = db.retrieveBalance(commands[1], many=True)
-            data = [balanceIn, commands[1], commands[1]]
-        elif len(commands) == 2:
-            data = [float(commands[0][:-3]), commands[0][-3:], commands[1]]
+            _, balanceIn, mxnIn, valUSDIn, valMXNIn = db.retrieveBalance(commands[0], many=True)
+            data = [balanceIn, commands[0], commands[0]]
+        
+        elif len(options) > 0:
+            data = [float(options[0][:-3]), options[0][-3:], commands[0]]
+
         else:
             temp = input('Escribe la cantidad a estimar junto con la moneda: ')
             coin = input('Escribe la moneda de origen: ')

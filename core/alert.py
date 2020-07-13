@@ -35,12 +35,12 @@ class Alert():
             dif = DataFrame(params['dif'])
             day = DataFrame(params['day'])
             custom = DataFrame(params['custom'])
+            self.actions = params['actions']
             self.upperLimit = DataFrame([S.loc['over'] for S in [growth, dif, day, custom]], index=['growth', 'dif', 'day', 'custom'])
             self.lowerLimit = DataFrame([S.loc['under'] for S in [growth, dif, day, custom]], index=['growth', 'dif', 'day', 'custom'])
             
         # Default params
         else:
-            # Default params
             self.coins = default['coins']
             self.myValuation = default['valuation']
             self.period = default['period']
@@ -52,6 +52,7 @@ class Alert():
             custom = DataFrame(default['custom'])
             self.upperLimit = DataFrame([S.loc['over'] for S in [growth, dif, day, custom]], index=['growth', 'dif', 'day', 'custom'])
             self.lowerLimit = DataFrame([S.loc['under'] for S in [growth, dif, day, custom]], index=['growth', 'dif', 'day', 'custom'])
+            self.actions = default['actions']
             
         try:
             # Configure the thing in memory
@@ -106,13 +107,12 @@ class Alert():
         # TODO: Guardar el historial como un diccionario local aquí!!
 
         # Is it a big leap?
-        send, msg = self.compareValues(df)
-        # Enviando el mensaje de alerta
-        self.compose(send, msg)
-        self.resume(df.loc[['close', 'dif']].T)
-        # except:
-        #     print('Ocurrió un error al recibir los datos')
-            
+        # send, msg = self.compareValues(df)
+        # # Enviando el mensaje de alerta
+        # self.compose(send, msg)
+        # self.resume(df.loc[['close', 'dif']].T)
+        # # except:
+        # #     print('Ocurrió un error al recibir los datos')
         self.setCheck()
 
 
@@ -158,7 +158,6 @@ class Alert():
     def compose(self, send:bool, msg:DataFrame):
         temp_msg = 'Hola! Un mensaje de Lucas!\n'
         header = {'growth': 'crecimiento inesperado', 'dif': 'cambio respecto a valuacion', 'day': 'cambio con respecto al promedio de hoy', 'close': 'cambio Custom', 'custom': 'cambio Custom'}
-        # TODO: Remplazar quickValuate por recibir Invested como tal
         quickValuate = lambda coin: self.db.retrieveBalance(coin, many=True)[2]
         for kind in msg.index:
             # Tiramos los na

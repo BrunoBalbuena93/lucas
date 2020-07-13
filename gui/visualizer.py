@@ -30,7 +30,8 @@ class Freeze():
         self.color = colors
         # Cuanto tiempo va a mostrar el plot?
         self.configureWindow()
-        self.prepPlot()
+        if not isGui:
+            self.prepPlot()
 
 
     def configureWindow(self):
@@ -50,8 +51,8 @@ class Freeze():
     def prepPlot(self):
         self.ax.cla()
         # Setting title
-        # self.ax.set_title('Coin: {}  {} - {}'.format(self.coin, dt.datetime.fromtimestamp(self.window).strftime('%Y-%m-%d %H:%M')[2:], dt.datetime.now().strftime('%Y-%m-%d %H:%M')[2:]))
-        # self.ax.set_xlim([self.window, int(dt.datetime.now().timestamp())])
+        self.ax.set_title('Coin: {}  {} - {}'.format(self.coin[:3].lower(), dt.datetime.fromtimestamp(self.window).strftime('%Y-%m-%d %H:%M')[2:], dt.datetime.now().strftime('%Y-%m-%d %H:%M')[2:]))
+        self.ax.set_xlim([self.window, int(dt.datetime.now().timestamp())])
         self.ax.set_facecolor(self.color['background'])
         self.ax.grid()
         
