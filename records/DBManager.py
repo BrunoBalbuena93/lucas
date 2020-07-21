@@ -155,7 +155,7 @@ class DataManager():
         balanceOut += trade['final'][0]
         
         if 'mxn' in trade['init'][1]:
-            rates = self.getValuation(trade['final'][1])
+            rates = self.getValuation(settings['coin-symbol'][trade['final'][1]])
             # Agregar la nueva valuación al actual
             entryValuation = trade['init'][0] / trade['final'][0]
             # a1x1 + a2x2 = ax => x = (a1x1 + a2x2) / (a1 + a2)
@@ -488,6 +488,7 @@ class DataManager():
         else:
             usdmxn = None
         # Retrieving the amount of coins/usd
+        symbol = settings['coin-symbol'][symbol] if len(symbol) == 3 else symbol
         params = {
             'symbols': symbol,
             'fields': 'regularMarketPrice'

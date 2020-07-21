@@ -107,10 +107,10 @@ class Alert():
         # TODO: Guardar el historial como un diccionario local aquí!!
 
         # Is it a big leap?
-        # send, msg = self.compareValues(df)
-        # # Enviando el mensaje de alerta
-        # self.compose(send, msg)
-        # self.resume(df.loc[['close', 'dif']].T)
+        send, msg = self.compareValues(df)
+        # Enviando el mensaje de alerta
+        self.compose(send, msg)
+        self.resume(df.loc[['close', 'dif']].T)
         # # except:
         # #     print('Ocurrió un error al recibir los datos')
         self.setCheck()

@@ -185,7 +185,7 @@ def HandleCommands(commands):
         db.addTrade(db.Trade((float(commands[0][:-3]), commands[0][-3:]), (float(commands[1][:-3]), commands[1][-3:])))
     
     if 'funds' in command or 'f' == command:
-        fund = commands[0] if len(commands) > 0 else float(input('¿De cuanto fue el deposito?  '))
+        fund = float(commands[0]) if len(commands) > 0 else float(input('¿De cuanto fue el deposito?  '))
         db.addFund(fund)
 
     if 'alert' in command:
@@ -200,8 +200,7 @@ def HandleCommands(commands):
             data = db.Trade((temp_1[:-3], temp_1[-3:]), (temp_2[:-3], temp_2[-3:]))
         quickValue(data)
         
-    if 'value' in commands:
-        commands.remove('value')
+    if 'value' in command or 'v' == command:
         current = False
         if len(commands) < 1:
             commands = [input('De que moneda? ')]
@@ -212,13 +211,13 @@ def HandleCommands(commands):
         if current:
             print('Valor actual: {:.3f} @ {:.3f} {}/usd'.format(data['currentvalue'], data['currentvaluation'], data['coin']))
     
-    if 'invested' in commands or 'inv' in commands:
+    if 'invested' in command or 'inv' in command:
         # FIXME: Arreglar esto
         separate = True if 'g' in options else False
         data = db.reportMXN(separate)
         print('Ingresado por SPEI: {:.2f}\nInversiones: {:.2f}\nGanancias: {:.2f}'.format(data['spei'], data['invested'], data['gains']))
 
-    if 'prev' in commands:
+    if 'prev' in command:
         commands.remove('prev')
         if 'all' in options:
             _, balanceIn, mxnIn, valUSDIn, valMXNIn = db.retrieveBalance(commands[0], many=True)
@@ -233,16 +232,15 @@ def HandleCommands(commands):
             data = [float(temp[:-3]), temp[-3:], coin]        
         preview(data)
     
-    if 'gains' in commands:
-        commands.remove('gains')
+    if 'gains' in command:
         separate = True if len(options) > 0 else False
         coin = commands[0] if len(commands) > 0 else None
         getGains(coin, separate)
 
-    if 'gui' in commands:
+    if 'gui' in command:
         initGui()
 
-    if 'shell' in commands:
+    if 'shell' in command:
         newShell()
         db.close()
         exit()

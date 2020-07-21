@@ -110,15 +110,15 @@
                 "under": 4
             },
             "xrp": {
-                "over": 3,
+                "over": 4.5,
                 "under": 3
             },
             "gnt": {
-                "over": 3,
+                "over": 5.6,
                 "under": 4
             },
             "ltc": {
-                "over": 3,
+                "over": 4,
                 "under": 4
             }
         },
@@ -129,11 +129,11 @@
             },
             "eth": {
                 "over": 250,
-                "under": 220
+                "under": 225
             },
             "xrp": {
-                "over": 0.2,
-                "under": 0
+                "over": 0.22,
+                "under": 0.18
             },
             "gnt": {
                 "over": 0.08,
