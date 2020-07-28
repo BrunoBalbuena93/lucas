@@ -1,0 +1,28 @@
+¿Cómo hacer funcionar Lucas en tu computadora?
+
+*Puedes ver los comandos principales en el archivo comandos.txt
+*.1 Son instrucciones con la maquina virtual
+*.2 Son instrucciones sobre windows
+
+1) Preparando las cosas
+1.1) Si tienes windows 10, te recomiendo instalar la maquina virtual de ubuntu que esta en la windows store
+https://discourse.ubuntu.com/t/instalacion-de-ubuntu-en-windows-10/14949?_ga=2.116718222.921759599.1595920176-1295167167.1595920176
+
+1.2) En caso que no quieras instalar Ubuntu, debes instalar una versión de Python 3 en tu computadora.
+https://www.python.org/downloads/
+
+2) Navega en tu explorador de archivos hasta llegar a la carpeta de Lucas. Es importante que estes a la misma altura que las carpetas records, core y gui para generar un ambiente virtual
+2.1) En la barra exploradora escribe "bash", o bien accede a la linea de comandos en este directorio y escribe "python3 -m venv venv"
+
+2.2) Abre una linea de comandos y teclea "python3 -m venv venv". En caso de que no funcione, puedes hacer "pip3 install virtualenv" y posteriormente "python3 virtualenv env"
+
+3) Activa e instala los requerimientos
+3.1) Escribe en la linea de comando "source venv/bin/activate", debe aparecer un "(venv)" al inicio de la linea. Una vez que este activo, escribe "pip3 install -r requirements.txt" y deja que haga las instalaciones
+3.2) Escribe en la linea de comando "./venv/Scripts/activate.ps1", debe aparecer un "(venv)" al inicio de la linea. Una vez que este activo, escribe "pip3 install -r requirements.txt" y deja que haga las instalaciones
+
+4) Inicializa tu base de datos y comienza a registrar!
+4.1) Escribe en la linea de comandos "sh lucas help"
+4.2) Escribe en la linea de comandos "python3 lucas.py help"
+
+Recomendación: Instala git para que las actualizaciones sean sencillas
+R.1) sudo apt-get install git

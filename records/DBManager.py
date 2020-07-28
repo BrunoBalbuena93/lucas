@@ -22,6 +22,17 @@ class DataManager():
         if not isfile(name):
             print('Inicializando base de datos')
             Initializer(path=name)
+            self.conn = sqlite3.connect(name)
+            self.cursor = self.conn.cursor()
+            self.test = False
+            print('Vamos a registrar al menos tu moneda nativa')
+            # Inicializando monedas
+            inSetup = True
+            while inSetup:
+                coin = input('Dame las siglas de la moneda (deben ser 3 letras): ')
+                self.addCoin(coin)
+                temp = input('Deseas agregar otra moneda?  [y, N]  ')
+                inSetup = False if 'n' in temp.lower() or len(temp) == 0 else True
         if test:
             print('Corriendo en modo de prueba. Sin escritura en DB')
         self.name = name
@@ -49,7 +60,7 @@ class DataManager():
             try:
                 involved_coins.append(self.getCoin(trade[entry][1]))
             except:
-                print("add")
+                print('Parece que la moneda {} no está registrada, vamos a registrarla'.format(trade[entry][1]))
                 self.addCoin(trade[entry][1])
                 involved_coins.append(self.getCoin(trade[entry][1]))
         init_coin = involved_coins[0]
@@ -85,11 +96,6 @@ class DataManager():
         if 'mxn' in trade['final'][1]:
             self.addGains()
         self.updateBalance(trade)
-        # # Es retiro?
-        # if 'mxn' in trade['final'][1]:
-        #     self.addGains()
-        # else:
-        #     self.updateValuation()
 
 
     # Agregando fondos
@@ -118,7 +124,7 @@ class DataManager():
         coins = self.getCoins()
         # Agregando moneda a settings
         if len(symbol) == 0:
-            symbol = input('Ingresa el simbolo de la moneda: ')
+            symbol = input('Ingresa el simbolo de la moneda ({}): '.format(coin))
         with open('settings.json', 'r+') as f:
             settings = load(f)
             settings['coin-symbol'][coin] = symbol
@@ -140,7 +146,11 @@ class DataManager():
             add_trade = 'INSERT INTO wTrade (initial, final) VALUES (?, ?);'
             if(self.uniqueWrite(add_trade, constrain, paramsCommand=[new_coin_id, coin], paramsConstrain=[new_coin_id, coin])):
                 print('Transacción {} => {} creada'.format(new_coin_id, coin))
-
+        # Por ultimo, se genera un balance
+        command = 'INSERT INTO balances (coin, amount, invested, valuationusd, valuationmxn) VALUES (?, ?, ?, ?, ?)'
+        constrain = 'SELECT amount FROM balances WHERE coin=?'
+        if self.uniqueWrite(command, constrain, [new_coin_id, 0, 0, 1, 1], [new_coin_id]):
+            print('Balance en 0 generado')
 
     # Funciones de update
     # Balances
@@ -178,7 +188,7 @@ class DataManager():
             self.write('UPDATE balances SET amount=?, invested=? WHERE coin=?;', [balanceIn, newMXNIn, self.getCoin(trade['init'][1])])
         else:
             raise NotImplementedError('Aun no se configura el exchange entre monedas')
-
+    
         print('Balances actualizados')
         
 
@@ -271,12 +281,12 @@ class DataManager():
 
 
     def retrieveBalance(self, coin:str, many=False):
-        try:
-            if many:
-                return self.read('SELECT * FROM balances WHERE coin={};'.format(self.getCoin(coin)))[0]
-            return self.read('SELECT amount FROM balances WHERE coin={};'.format(self.getCoin(coin)))[0][0]
-        except IndexError:
-            return False
+        # try:
+        if many:
+            return self.read('SELECT * FROM balances WHERE coin={};'.format(self.getCoin(coin)))[0]
+        return self.read('SELECT amount FROM balances WHERE coin={};'.format(self.getCoin(coin)))[0][0]
+        # except IndexError:
+        #     return False
 
     # This returns the current valuation or the many valuations and the current one
     def retrieveValuation(self, coin: str, out:str='usd'):
@@ -371,6 +381,14 @@ class DataManager():
     def getTables(self):
         self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         print(self.cursor.fetchall())
+
+
+    def quickValuation(self, coin:str, a2: float, x2: float):
+        _, balanceCoinAmount, a, x1, myValuationMXN = self.retrieveBalance(coin, many=True)
+        usdvaluation = myValuationMXN / x1
+        a1 = a / usdvaluation
+        return (a2 + a1) / ((a2 / x2) + (a1 / x1))
+
 
     # Only writes if it's unique
     def uniqueWrite(self, command: str, constrain: str, paramsCommand: list, paramsConstrain: list):
@@ -551,6 +569,7 @@ def Initializer(path='records/records.db'):
     gains = '''CREATE TABLE IF NOT EXISTS gains (
         id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
         trade_id INTEGER,
+        amount NUMERIC,
         gain NUMERIC,
         date TEXT
     );'''

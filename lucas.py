@@ -43,13 +43,6 @@ with open('settings.json', 'r') as f:
     settings = load(f)
 db = DataManager()
 thunder = Thunder()
-# fire = Fire('btc', thunder.getWindow('btc'))
-
-# De produccion
-# db = DataManager()
-# coins = db.retrieveCoins()
-# thunder = Thunder()
-# fires = [Fire(coin, thunder.getWindow((coin))) for coin in coins]
 
 
 def newShell():
@@ -108,15 +101,17 @@ def quickValue(params:dict):
     if 'mxn' in params['init'][1]:
         # Caso que mxn sea la inicial
         platformValuation = (params['init'][0] / usdval) / params['final'][0]
+        forecastValuation = 'de {:.4f} '.format(db.quickValuation(params['final'][1], params['init'][0] / usdval, platformValuation))
         coin = 'usd/' + params['final'][1]
     elif 'mxn' in params['final'][1]: 
         # Caso que mxn sea la final
         platformValuation = (params['final'][0] / usdval) / params['init'][0]
+        forecastValuation = 'sin cambio'
         coin = 'usd/' + params['init'][1]
     else:
         # Caso que sea entre monedas
-        raise NotImplementedError
-    print('La valuación que te estan dando es {:.3f} {}'.format(platformValuation, coin))
+        raise NotImplementedError('Aun no está implementado esto')
+    print('La valuación que te estan dando es {:.3f} {}\nLa compra te deja con una valuación {}'.format(platformValuation, coin, forecastValuation))
     
 
 def getGains(coin:str, separate:bool):

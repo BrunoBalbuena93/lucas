@@ -1,0 +1,13 @@
+*Al correr desde Powershell se debe activar el venv escribiendo "./venv/Scripts/activate.ps1" antes de comenzar
+
+Comandos desde Ubuntu: sh lucas +
+Comandos desde Porweshell: python3 lucas.py +
+snapshot/snap coin --[window]: Muestra una ventana de un tiempo determinado
+trade [cantidad][moneda] [cantidad][moneda]: Agrega un trade a base de instrucciones
+funds [cantidad]: Agregar fondos
+value [coin] --current?True: Valuación actual de moneda con saldo en cartera. Current => Comparativa con el valor actual
+quickvalue [amount][coin] [amount][coin]: Te da una valuacion sobre la que te están vendiendo una moneda, una de ellas debe ser mxn.
+inv --[s]: Cantidad invertidad al momento. g => Separa cantidad de SPEI y cantidad de ganancia
+alert --custom(opcional): Crea funcion iterante de alerta. En caso de custom, utiliza alert_settings.json
+gains [coin] --s: Ganancias totales, si agregas coin te da de esa moneda en específico, s las separa por coin
+shell: Inicia una shell con Data Manager y Thunder inicializados
