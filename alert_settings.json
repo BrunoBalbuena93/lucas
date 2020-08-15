@@ -3,6 +3,7 @@
     "valuation": "all",
     "period": 5,
     "actions": ["buy", "sell"],
+    "params": ["growth", "dif", "day", "custom"],
     "growth": {
         "btc": {"over": 1, "under": 2},
         "eth": {"over": 1.3, "under": 2},

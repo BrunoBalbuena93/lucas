@@ -14,7 +14,6 @@ from core.alert import Alert
 from gui.visualizer import Freeze, createFigure
 from gui.gui import startGUI
 
-# TODO: Implementar metodo para obtener la cantidad invertida al momento en una moneda (DBManager)
 # TODO: Concluir la GUI
 
 """
@@ -33,7 +32,6 @@ Options:
 Notas
 pyuic5 -x [nombre ui] -o [output.py]
 """
-# TODO: Agregar coin al snapshot
 # TODO: Traceback de inversion
 # TODO: Antes probar con un script aparte e importarlo como con temp. El tracker en tiempo real parece que tendrá que ser una gui
 # TODO: Agregar funcion all a prev
@@ -196,15 +194,17 @@ def HandleCommands(commands):
         quickValue(data)
         
     if 'value' in command or 'v' == command:
-        current = False
-        if len(commands) < 1:
-            commands = [input('De que moneda? ')]
-        if 't' in options:
-            current = True
-        data = db.reportCoin(commands[0], current)
-        print('coin: {}\nValor invertido: {:.3f} @ {:.3f} {}/usd'.format(data['coin'], data['mxnvalue'], data['valuation'], data['coin']))
-        if current:
-            print('Valor actual: {:.3f} @ {:.3f} {}/usd'.format(data['currentvalue'], data['currentvaluation'], data['coin']))
+        current = True if 't' in options else False
+        if len(commands) < 1 or 'all' in commands:
+            coins = db.retrieveCoins()
+            data_ = list(map(db.reportCoin, coins, [current] * len(coins)))
+        else:
+            data_ = [db.reportCoin(commands[0], current)]
+        for data in data_:
+            print('coin: {}\nValor invertido: {:.3f} @ {:.3f} {}/usd'.format(data['coin'], data['mxnvalue'], data['valuation'], data['coin']))
+            if current:
+                # TODO: Calcular diferencias
+                print('Valor actual: {:.3f} @ {:.3f} {}/usd\nDiferencia: {:.2f} mxn  | {:.4f}%'.format(data['currentvalue'], data['currentvaluation'], data['coin'], data['mxnvalue'] * data['currentvaluation'] / data['valuation'], data['currentvaluation'] / data['valuation']))
     
     if 'invested' in command or 'inv' in command:
         # FIXME: Arreglar esto

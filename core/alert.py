@@ -26,6 +26,7 @@ class Alert():
             print('Using the defaults of alert_settings.json')
             with open('alert_settings.json','r') as f:
                 params = load(f)
+            metrics = params['params']
             self.coins = params['coins']
             self.myValuation = params['valuation']
             self.period = params['period']
@@ -41,6 +42,7 @@ class Alert():
             
         # Default params
         else:
+            metrics = settings['alert']['params']
             self.coins = default['coins']
             self.myValuation = default['valuation']
             self.period = default['period']
@@ -58,12 +60,7 @@ class Alert():
             # Configure the thing in memory
             thunder = Thunder()
             self.avg = Series({coin: thunder.getWindow(coin)['close'].mean() for coin in self.coins})
-            self.history = DataFrame([
-                Series({coin: 0 for coin in self.coins}, name='growth'),
-                Series({coin: 0 for coin in self.coins}, name='dif'),
-                Series({coin: 0 for coin in self.coins}, name='day'),
-                Series({coin: self.avg[coin] for coin in self.coins}, name='custom')
-            ], index=['growth', 'dif', 'day', 'custom'])
+            self.history = DataFrame([Series({coin: 0 for coin in self.coins}, name=param) for param in metrics], index=metrics)
             # Configuring the event
             self.canSend = False
             self.looper = scheduler(time, sleep)
@@ -89,6 +86,7 @@ class Alert():
         data = {coin: Fire(coin, Thunder.get5h(symbols[coin])) for coin in self.coins}
         
         df = DataFrame({coin: data[coin].valueNow() for coin in self.coins}).append(Series({coin: self.db.retrieveValuation(coin) if 'all' in self.myValuation else self.db.retrieveLastValuation(coin) for coin in self.coins}, name='self'))
+        print(df)
         # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante EMA
         df.loc['growth'] = (df.loc['close'] - df.loc['ema']) * 100 / df.loc['ema']
         # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante SMA

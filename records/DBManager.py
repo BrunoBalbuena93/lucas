@@ -54,6 +54,8 @@ class DataManager():
             # Agregando candado, pero no tendría porque salir error
             if 'mxn' in trade['init'][1] :
                 self.addFund(trade['init'][0])
+        
+        # TODO: Optimizar
         # Primero obtenemos las monedas
         involved_coins = []
         for entry in ['init', 'final']:
@@ -99,14 +101,12 @@ class DataManager():
 
 
     # Agregando fondos
-    def addFund(self, fund:int or float):
-        """
-        fund = {amount: number, isInput: bool}
-        """
+    def addFund(self, fund:int or float, entry=False):
         # Agregando fecha
         date = dt.datetime.now().isoformat()
         command = "INSERT INTO spei (amount, input, date) VALUES (?, ?, ?);"
-        self.write(command, params=[fund, 1, date])
+        isEntry = 0 if entry else 1
+        self.write(command, params=[fund, isEntry, date])
         print('Fondos almacenados correctamente')
         balance = self.retrieveBalance('mxn')
         balance += fund
