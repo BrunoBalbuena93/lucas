@@ -8,32 +8,51 @@ from sklearn.svm import SVR
 from sklearn.isotonic import IsotonicRegression
 from sklearn.model_selection import train_test_split
 from scipy.ndimage import gaussian_filter1d
-'''
-Fire is the instance which has all the data
-Here we make all the approaches and ML necessary 
-I first thought to merge this one with Thunder, but since the processes are different
-it may be good praxis to separate them (even thought they share the same data)
-Afterwards, treat Thunder as a service and migrate everything of data to Fire
 
+from .collector import Thunder
+
+'''
+Fire es la instancia que contiene todos los datos. 
+Inicialmente se le da el valor de un día anterior.
+
++ df: Valor "historico" de 1 día
++ sma & ema: Indicadores
++ tendency: Valor de las ultimas 5h
 '''
 
 class Fire():
-    def __init__(self, coin:str, df: DataFrame, test:bool=False):
+    def __init__(self, coin:str, df: DataFrame, window=12, test:bool=False):
         super(Fire, self).__init__()
         self.coin = coin
+        # Initial data from 1 day
         self.df = df.dropna()
-        self.sma = self.getSMA(12, self.df['close']).dropna()
-        self.ema = self.getEMA(12, self.df['close']).dropna()
-        # Este es el escalador de precios (y)
-        # self.findChanges()  
-        self.n = 4  
+        self.windowSize = window
+        # Generando SMA
+        self.sma = self.getSMA(self.windowSize, self.df['close'])
+        # Generando EMA
+        self.ema = self.getEMA(self.windowSize, self.df['close'])
+        # Obteniendo datos de las ultimas 5 horas
+        self.setCurrent()
+
+
+    def setCurrent(self):
+        temp = Thunder.get5h(self.coin)['close'].dropna()
+        N = len(temp)
+        self.data = DataFrame([temp.values, self.ema.values[-N:], self.sma.values[-N:]], index=['price', 'ema', 'sma']).T
+
+
+    def updateData(self, retValue=False):
         try:
-            y_ = df.apply(lambda x: x[['close', 'open']].mean(), axis=1).dropna(axis=0)
-            y_ = gaussian_filter1d(y_, y_.std() / 8)
-            self.tendency = Series(y_)#, index=df.index)
-            self.data_scaler = MinMaxScaler().fit(self.tendency.values.reshape(-1, 1))   
+            value = Thunder.getCoinValuation(self.coin)
+            # Calculando EMA
+            new_ema = value * (2 / (1 + self.windowSize)) + self.ema.values[-1] * (1 - (2/(1 + self.windowSize)))
+            # Caluclando SMA
+            new_sma = (self.data['price'].values[-self.windowSize + 1:].sum() + value) / self.windowSize
+            # Agregando a data
+            self.data = self.data.append({'price': value, 'ema': new_ema, 'sma': new_sma}, ignore_index=True)
+            if retValue:    return Series({'price': value, 'ema': new_ema, 'sma': new_sma}, name=self.coin)
         except:
-            self.tendency = None
+            pass
 
     # Retrieving data 
     def getData(self, t: int=0):
@@ -89,7 +108,6 @@ class Fire():
         # plt.legend()
         # plt.show()
         return Series(y_, index=dates[-forecast:])
-        
     
     @staticmethod 
     def getEMA(window:int, data:Series):
@@ -110,6 +128,8 @@ class Fire():
         now = dt.datetime.now()
         return np.array([int((now + dt.timedelta(minutes= i*5 + 1)).timestamp()) for i in range(forecast)])
         
+    def __str__(self):
+        return self.coin
 
 if __name__ == '__main__':
     print(Fire.composeDates(5))

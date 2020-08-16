@@ -135,6 +135,7 @@ class Thunder():
         '''
         This retrieves the value of the MXN/USD and coin/USD to calculate a valuation afterwards
         '''
+        symbol = symbols[symbol] if len(symbol) == 3 else symbol
         # Retrieving the amount of coins/usd
         params = {
             'symbols': symbol,
@@ -169,6 +170,7 @@ class Thunder():
     
     @staticmethod
     def get5h(symbol:str):
+        symbol = symbols[symbol] if len(symbol) == 3 else symbol
         # Configuring params for the query
         period2 = dt.datetime.now()
         period1 = period2 - dt.timedelta(hours=5)

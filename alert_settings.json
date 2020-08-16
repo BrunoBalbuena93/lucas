@@ -5,17 +5,17 @@
     "actions": ["buy", "sell"],
     "params": ["growth", "dif", "day", "custom"],
     "growth": {
-        "btc": {"over": 1, "under": 2},
-        "eth": {"over": 1.3, "under": 2},
+        "btc": {"over": 2, "under": 2},
+        "eth": {"over": 3, "under": 3},
         "xrp": {"over": 3, "under": 3},
         "gnt": {"over": 3, "under": 4},
         "ltc": {"over": 3, "under": 4}
     },
     "dif": {
-        "btc": {"over": 3, "under": 4},
+        "btc": {"over": 4, "under": 4},
         "eth": {"over": 3, "under": 4},
-        "xrp": {"over": 3, "under": 8},
-        "gnt": {"over": 10, "under": 4},
+        "xrp": {"over": 6, "under": 5},
+        "gnt": {"over": 8, "under": 4},
         "ltc": {"over": 3, "under": 4}
     },
     "day":{
@@ -26,11 +26,11 @@
         "ltc": {"over": 3, "under": 4}
     },
     "custom":{
-        "btc": {"over": 9800, "under": 9250},
-        "eth": {"over": 240, "under": 225},
-        "xrp": {"over": 0.2, "under": 0},
+        "btc": {"over": 12500, "under": 1050},
+        "eth": {"over": 450, "under": 400},
+        "xrp": {"over": 0.32, "under": 0.28},
         "gnt": {"over": 0.08, "under": 0.06},
-        "ltc": {"over": 52, "under": 40}
+        "ltc": {"over": 60, "under": 55}
     },
     "forecast": 15
 }

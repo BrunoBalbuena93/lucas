@@ -82,7 +82,10 @@ def createAlert(options):
     '''
     Crea una alerta con logs
     '''
-    Alert(options, db)
+    try:
+        Alert(options, db)
+    except KeyboardInterrupt:
+        db.close()
 
 def preview(values):
     '''
