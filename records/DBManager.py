@@ -385,10 +385,19 @@ class DataManager():
 
     def quickValuation(self, coin:str, a2: float, x2: float):
         _, balanceCoinAmount, a, x1, myValuationMXN = self.retrieveBalance(coin, many=True)
+        # Para convertir a dolares...
         usdvaluation = myValuationMXN / x1
         a1 = a / usdvaluation
-        return (a2 + a1) / ((a2 / x2) + (a1 / x1))
+        val = (a2 + a1) / ((a2 / x2) + (a1 / x1)) 
+        return val, (val - x1) / x1 * 100
 
+
+    def quickGain(self, coin:str, amount: float, valuation: float):
+        _, balanceCoinAmount, a, x1, myValuationMXN = self.retrieveBalance(coin, many=True)
+        usdvaluation = myValuationMXN / x1
+        gainPreview = amount * valuation * usdvaluation - amount * x1 * usdvaluation
+        return gainPreview, (valuation - x1) / x1 * 100
+        
 
     # Only writes if it's unique
     def uniqueWrite(self, command: str, constrain: str, paramsCommand: list, paramsConstrain: list):

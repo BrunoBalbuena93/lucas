@@ -116,11 +116,12 @@ class Alert():
         msg = []
         new_data = []
         for label in self.metrics:
-            # TODO: Fix this
+            # FIXME: Fix this
             if 'custom' not in label:
                 # Change from alert
                 change = concat([df.loc[label][df.loc[label] > self.upperLimit.loc[label]], 
                                 df.loc[label][df.loc[label] < -self.upperLimit.loc[label]]])
+                print(change)
                 # Retrieve the past changes
                 temp_change = self.history.loc[label]
                 new_change = Series([change[coin] if coin in change.index and abs((temp_change[coin] - change[coin])) > tol else temp_change[coin] for coin in temp_change.index], index=temp_change.index, name=label)

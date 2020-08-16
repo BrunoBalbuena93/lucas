@@ -102,17 +102,19 @@ def quickValue(params:dict):
     if 'mxn' in params['init'][1]:
         # Caso que mxn sea la inicial
         platformValuation = (params['init'][0] / usdval) / params['final'][0]
-        forecastValuation = 'de {:.4f} '.format(db.quickValuation(params['final'][1], params['init'][0] / usdval, platformValuation))
+        value, percent = db.quickValuation(params['final'][1], params['init'][0] / usdval, platformValuation)
+        forecastValuation = 'Esta compra te dejaría una valuación de {:.4f} | {:.4f}%'.format(value, percent)
         coin = 'usd/' + params['final'][1]
     elif 'mxn' in params['final'][1]: 
-        # Caso que mxn sea la final
+        # Caso que mxn sea la final, calcular ganancia
         platformValuation = (params['final'][0] / usdval) / params['init'][0]
-        forecastValuation = 'sin cambio'
+        gain, percent = db.quickGain(params['init'][1], params['init'][0], platformValuation)
+        forecastValuation = 'Esta compra genera una ganacia de {:.2f} | {:.4f}%'.format(gain, percent)
         coin = 'usd/' + params['init'][1]
     else:
         # Caso que sea entre monedas
         raise NotImplementedError('Aun no está implementado esto')
-    print('La valuación que te estan dando es {:.3f} {}\nLa compra te deja con una valuación {}'.format(platformValuation, coin, forecastValuation))
+    print('La valuación que te estan dando es {:.3f} {}\n{}'.format(platformValuation, coin, forecastValuation))
     
 
 def getGains(coin:str, separate:bool):
