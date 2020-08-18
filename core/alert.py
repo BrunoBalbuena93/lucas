@@ -68,7 +68,7 @@ class Alert():
             self.canSend = False
             self.looper = scheduler(time, sleep)
             self.checkStocks()
-        except AttributeError or TypeError:
+        except UnboundLocalError:
             print('Hubo un error, intentalo de nuevo')
 
     def setCheck(self):
@@ -87,9 +87,9 @@ class Alert():
         # Diferencia entre el valor actual y mi valuación
         df.loc['dif'] = (df.loc['price'] - df.loc['self']) * 100 / df.loc['self'] if 'dif' in self.metrics else [0] * len(self.coins)
         # Comparativa con lo esperado durante 1 día
-        df.loc['day'] = (df.loc['price'] - df.loc['sma']) * 100 / df.loc['sma'] if 'day' in self.metrics else [0] * len(sel.coins)
+        df.loc['day'] = (df.loc['price'] - df.loc['sma']) * 100 / df.loc['sma'] if 'day' in self.metrics else [0] * len(self.coins)
         # Custom que es lo mismo que price
-        df.loc['custom'] = df.loc['price'] if 'custom' in self.metrics else [0] * len(sel.coins)
+        df.loc['custom'] = df.loc['price'] if 'custom' in self.metrics else [0] * len(self.coins)
         # print(self.metrics)
         # TODO: Aquí va la magia de esto
         # try:
@@ -101,9 +101,9 @@ class Alert():
         # TODO: Guardar el historial como un diccionario local aquí!!
 
         # Is it a big leap?
-        send, msg = self.compareValues(df.loc[self.metrics])
+        msg = self.compareValues(df.loc[self.metrics])
         # Enviando el mensaje de alerta
-        self.compose(send, msg)
+        self.compose(msg)
         self.resume(df.loc[['price', 'dif']].T)
         # # except:
         # #     print('Ocurrió un error al recibir los datos')
@@ -114,44 +114,29 @@ class Alert():
         '''
         Comparamos los resultados individuales
         '''
+        # TODO: Configurar tolerancia desde los settings
         tol = 0.3
-        msg = []
-        new_data = []
-        for label in self.metrics:
-            # FIXME: Fix this
-            if 'custom' not in label:
-                # Change from alert
-                change = concat([df.loc[label][df.loc[label] > self.upperLimit.loc[label]], 
-                                df.loc[label][df.loc[label] < -self.upperLimit.loc[label]]])
-                # Retrieve the past changes
-                temp_change = self.history.loc[label]
-                new_change = Series([change[coin] if coin in change.index and abs((temp_change[coin] - change[coin])) > tol else temp_change[coin] for coin in temp_change.index], index=temp_change.index, name=label)
-                # las que se van a mensaje:
-                change = change[new_change != temp_change]
-                if len(change) > 0: 
-                    msg.append(change)
-                new_data.append(new_change)
         
-        # Para los customs
-        # Change from alert
-        change = concat([df.loc['price'][df.loc['price'] > self.upperLimit.loc['custom']], 
-                        df.loc['price'][df.loc['price'] < -self.upperLimit.loc['custom']]])
-        # Retrieve the past changes
-        temp_change = self.history.loc['custom']
-        new_change = Series([change[coin] if coin in change.index and abs((temp_change[coin] - change[coin]) * 100 / temp_change[coin]) > tol else temp_change[coin] for coin in temp_change.index], index=temp_change.index, name='custom')
-        # las que se van a mensaje:
-        change = change[new_change != temp_change]
-        if len(change) > 0: 
-            msg.append(change)
-        new_data.append(new_change)
-        new_data = DataFrame(new_data)
-        self.history = DataFrame(new_data)
-        if len(msg) > 0:
-            return True, DataFrame(msg)
-        return False, DataFrame([])
+        # Calculando diferencias respecto al threshold
+        up = DataFrame([Series(np.where(df.loc[metric] >= self.upperLimit.loc[metric], df.loc[metric], 0), name=metric) for metric in self.metrics])
+        do = DataFrame([Series(np.where(-df.loc[metric] > self.lowerLimit.loc[metric], -df.loc[metric], 0), name=metric) if 'custom' not in metric else Series(np.where(df.loc[metric] < self.lowerLimit.loc[metric], df.loc[metric], 0), name=metric) for metric in self.metrics])
+        temp = up - do
+        temp.columns = self.coins
+        # temp tiene los cambios que valen la pena notificar, ahora se compara con history
+        transition = DataFrame([Series(np.where(np.abs(temp.loc[metric] - self.history.loc[metric]) > tol, temp.loc[metric], self.history.loc[metric]), name=metric) for metric in self.metrics])
+        transition.columns = self.coins
+        msg = None if transition.equals(self.history) else transition
+        # print('History:\n{}\nTransition:\n{}\nHistory == Transition {}'.format(self.history, transition, transition.equals(self.history)))
+        self.history = transition
+        return msg
 
-
-    def compose(self, send:bool, msg:DataFrame):
+        
+    def compose(self, msg:DataFrame or None):
+        '''
+        
+        '''
+        if msg is None:
+            return
         temp_msg = 'Hola! Un mensaje de Lucas!\n'
         header = {'growth': 'crecimiento inesperado', 'dif': 'cambio respecto a valuacion', 'day': 'cambio con respecto al promedio de hoy', 'price': 'cambio Custom', 'custom': 'cambio Custom'}
         quickValuate = lambda coin: self.db.retrieveBalance(coin, many=True)[2]

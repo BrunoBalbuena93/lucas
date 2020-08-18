@@ -15,7 +15,7 @@
         "btc": {"over": 4, "under": 4},
         "eth": {"over": 3, "under": 4},
         "xrp": {"over": 6, "under": 5},
-        "gnt": {"over": 8, "under": 4},
+        "gnt": {"over": 7.5, "under": 4},
         "ltc": {"over": 3, "under": 4}
     },
     "day":{
