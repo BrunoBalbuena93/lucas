@@ -81,14 +81,16 @@ class Alert():
         
         '''
         # Actualizando datos
-        df = DataFrame([f.updateData(True) for f in self.fires.values()]).T.append(Series({coin: self.db.retrieveValuation(coin) if 'all' in self.myValuation else self.db.retrieveLastValuation(coin) for coin in self.coins}, name='self'))
+        df = DataFrame([f.updateData(True) for f in self.fires.values()]).T.append(Series({coin: self.db.retrieveValuation(coin) if 'all' in self.myValuation else self.db.retrieveLastValuation(coin) for coin in self.coins}, name='self'))      
         # Indica si se generan cambios súbitos con respecto a la tendencia actual mediante EMA
         df.loc['growth'] = (df.loc['price'] - df.loc['ema']) * 100 / df.loc['ema'] if 'growth' in self.metrics else [0] * len(self.coins)
         # Diferencia entre el valor actual y mi valuación
         df.loc['dif'] = (df.loc['price'] - df.loc['self']) * 100 / df.loc['self'] if 'dif' in self.metrics else [0] * len(self.coins)
         # Comparativa con lo esperado durante 1 día
         df.loc['day'] = (df.loc['price'] - df.loc['sma']) * 100 / df.loc['sma'] if 'day' in self.metrics else [0] * len(sel.coins)
-
+        # Custom que es lo mismo que price
+        df.loc['custom'] = df.loc['price'] if 'custom' in self.metrics else [0] * len(sel.coins)
+        # print(self.metrics)
         # TODO: Aquí va la magia de esto
         # try:
         # Starting with ML
@@ -99,7 +101,7 @@ class Alert():
         # TODO: Guardar el historial como un diccionario local aquí!!
 
         # Is it a big leap?
-        send, msg = self.compareValues(df)
+        send, msg = self.compareValues(df.loc[self.metrics])
         # Enviando el mensaje de alerta
         self.compose(send, msg)
         self.resume(df.loc[['price', 'dif']].T)
@@ -121,7 +123,6 @@ class Alert():
                 # Change from alert
                 change = concat([df.loc[label][df.loc[label] > self.upperLimit.loc[label]], 
                                 df.loc[label][df.loc[label] < -self.upperLimit.loc[label]]])
-                print(change)
                 # Retrieve the past changes
                 temp_change = self.history.loc[label]
                 new_change = Series([change[coin] if coin in change.index and abs((temp_change[coin] - change[coin])) > tol else temp_change[coin] for coin in temp_change.index], index=temp_change.index, name=label)
