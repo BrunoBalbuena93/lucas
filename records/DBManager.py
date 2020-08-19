@@ -16,7 +16,7 @@ with open('settings.json', 'r') as f:
     settings = load(f)
 
 
-# TODO: Agregar en Balances actualizados el cambio en valuación (cantidad | porcentaje)
+# TODO: Eliminar/modificar trades almacenados y recalcular valuación
 
 class DataManager():
     def __init__(self, name='records/records.db', test=False):

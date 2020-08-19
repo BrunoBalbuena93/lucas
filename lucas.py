@@ -164,7 +164,6 @@ def getGains(coin:str, options: str):
             print('Por moneda:' + '\n'.join(['{}: {:.2f} | {:.4f} %'.format(coin, data[data['coin'] == coin]['amount'].sum(), (data[data['coin'] == coin]['amount'] * data[data['coin'] == coin]['gain']).sum() / data[data['coin'] == coin]['amount'].sum()) for coin in data['coin'].unique()]))
     print('La ganancia total es de {:.2f} MXN | {:.4f}%'.format(data['amount'].sum(), (data['amount'] * data['gain']).sum() / data['amount'].sum()))
     
-
 def initGui():
     startGUI(db, thunder)
 
@@ -236,8 +235,7 @@ def HandleCommands(commands):
         for data in data_:
             print('coin: {}\nValor invertido: {:.3f} @ {:.3f} {}/usd'.format(data['coin'], data['mxnvalue'], data['valuation'], data['coin']))
             if current:
-                # TODO: Calcular diferencias
-                print('Valor actual: {:.3f} @ {:.3f} {}/usd\nDiferencia: {:.2f} mxn  | {:.4f}%'.format(data['currentvalue'], data['currentvaluation'], data['coin'], data['mxnvalue'] * data['currentvaluation'] / data['valuation'], data['currentvaluation'] / data['valuation']))
+                print('Valor actual: {:.3f} @ {:.3f} {}/usd\nDiferencia: {:.2f} mxn  | {:.4f}%'.format(data['currentvalue'], data['currentvaluation'], data['coin'], data['mxnvalue'] * (data['currentvaluation'] / data['valuation'] - 1), data['currentvaluation'] / data['valuation']))
     
     if 'invested' in command or 'inv' in command:
         # FIXME: Arreglar esto

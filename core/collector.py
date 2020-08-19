@@ -13,8 +13,6 @@ period: 5d (Cantidad de días atrás en los que te deseas fijar)
 
 '''
 
-# TODO: Migrar todo lo que tiene que ver con datos a Fire. Aqui solo son los parámetros de las requests
-
 with open('settings.json', 'r') as f:
     symbols = load(f)['coin-symbol']
 
