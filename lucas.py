@@ -117,25 +117,53 @@ def quickValue(params:dict):
     print('La valuación que te estan dando es {:.3f} {}\n{}'.format(platformValuation, coin, forecastValuation))
     
 
-def getGains(coin:str, separate:bool):
+def getGains(coin:str, options: str):
     '''
     Aquí obtiene las ganancias producidas por los trades.
     coin =>
         None: De todas las monedas
         [coin]: De una moneda en específico
-    separate => 
-        True: Te da la cantidad y porcentaje de cada operación de cada moneda
-        False: Te da el valor neto de todas las ganancias
+    Options:
+        s => Desglozar todas las operaciones de ganancia
+        t => Cantidad total al final
+        r => Agregar total por moneda
+        d:[año-mes]?current => Mes específico
     '''
-    data = db.getCoinGains(coin, separate) if coin else db.getAllGains(separate)
+    separate = any('s' in op for op in options)
+    total = any('t' in op for op in options)
+    resume = any('r' in op for op in options)
+    specDate = any('d' in op for op in options)
+    # Primero se obtiene la data por fecha
     try:
-        if separate:
-            print('Las ganancias separadas fueron:\n' + '\n'.join(['{}: {:.2f} | {:.4f}%'.format(data['coin'].iloc[i], data['amount'].iloc[i], data['gain'].iloc[i]) for i in range(len(data))]))
-            print('La ganancia total es de {:.2f} MXN | {:.4f}%'.format(data['amount'].sum(), (data['amount'] * data['gain']).sum() / data['amount'].sum()))
-        else:
-            print('La ganancia total es {:.2f}mxn | {:.4f}%  coins={}'.format(data['amount'], data['avg_gain'], data.name))
+        data = db.getCoinGains(coin) if coin else db.getAllGains()
     except:
-        print('Aun no generas nada, pero paciencia rey, ya saldrá')
+        print('Aun no has generado ganancias')
+        return
+    # Despues checamos si se quiere un mes especifico...
+    if specDate:
+        # Caso especifico
+        specDate = [s.replace('d', '') for s in options if 'd' in s][0]
+        if len(specDate) == 0:
+            specDate = input('Selecciona un mes en formato \'mm-aa\' o \'mm-aaaa\', si quieres el actual, presiona cualquier tecla: ')
+        date = Thunder.ConfigureDate(specDate)
+        temp = data.loc[date] if date else data.loc[dt.datetime.strptime('{}-{}'.format(dt.date.today().year, dt.date.today().month), '%Y-%m')]
+        if separate:
+            print('Las ganancias fueron:\n' + '\n'.join(['{}: {:.2f} | {:.4f}%'.format(row['coin'], row['amount'], row['gain']) for _, row in temp.iterrows()]))
+        print('Total ganado fue: {:.2f} | {:.4f}%'.format(temp['amount'].sum(), (temp['amount'] * temp['gain']).sum() / temp['amount'].sum()))
+        if resume:
+            print('Por moneda:\n' + '\n'.join(['{}: {:.2f} | {:.4f} %'.format(coin, temp[temp['coin'] == coin]['amount'].sum(), (temp[temp['coin'] == coin]['amount'] * temp[temp['coin'] == coin]['gain']).sum() / temp[temp['coin'] == coin]['amount'].sum()) for coin in temp['coin'].unique()]))
+        return
+    
+    for month in data.index.unique():
+        D = dt.datetime.strftime(month, '%B, %Y')
+        if separate:
+            print('Las ganancias durante {} fueron:\n'.format(D) + '\n'.join(['{}: {:.2f} | {:.4f}%'.format(row['coin'], row['amount'], row['gain']) for _, row in data.loc[month].iterrows()]))
+        print('Total ganado en {} fue: {:.2f} | {:.4f}%'.format(D, data.loc[month]['amount'].sum(), (data.loc[month]['amount'] * data.loc[month]['gain']).sum() / data.loc[month]['amount'].sum()))
+    if total:
+        if resume:
+            print('Por moneda:' + '\n'.join(['{}: {:.2f} | {:.4f} %'.format(coin, data[data['coin'] == coin]['amount'].sum(), (data[data['coin'] == coin]['amount'] * data[data['coin'] == coin]['gain']).sum() / data[data['coin'] == coin]['amount'].sum()) for coin in data['coin'].unique()]))
+    print('La ganancia total es de {:.2f} MXN | {:.4f}%'.format(data['amount'].sum(), (data['amount'] * data['gain']).sum() / data['amount'].sum()))
+    
 
 def initGui():
     startGUI(db, thunder)
@@ -162,7 +190,7 @@ def HandleCommands(commands):
     # First, retrieve the raw command
     command = commands.pop(0)
     # First, attend the options
-    options = [entry.replace('-', '') for entry in commands if '-' in entry]
+    options = [entry.replace('--', '') for entry in commands if '--' in entry]
     [commands.remove('--' + entry) for entry in options]
     
     if 'h' == command or 'help' in command or 'h' in options or 'help' in options:
@@ -233,9 +261,8 @@ def HandleCommands(commands):
         preview(data)
     
     if 'gains' in command:
-        separate = True if len(options) > 0 else False
         coin = commands[0] if len(commands) > 0 else None
-        getGains(coin, separate)
+        getGains(coin, options)
 
     if 'gui' in command:
         initGui()

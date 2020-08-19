@@ -1,7 +1,7 @@
 import sqlite3
 import datetime as dt
 from os.path import isfile
-from pandas import DataFrame, concat, Series
+from pandas import DataFrame, concat, Series, to_datetime
 from requests import get
 from json import loads, load, dump
 
@@ -310,24 +310,25 @@ class DataManager():
             return None
 
     # Retorna las ganancias de una sola moneda
-    def getCoinGains(self, coin:str, separate:bool):
+    def getCoinGains(self, coin:str):
         # Primero obtenemos el type correspondiente
         wType = self.getType(coin, 'mxn')
         # Ahora si, obteniendo los datos:
-        data = DataFrame(self.read('SELECT gains.amount, gains.gain FROM gains JOIN trades where gains.trade_id = trades.id and trades.type={};'.format(wType)), columns=['amount', 'gain'])
+        data = DataFrame(self.read('SELECT gains.amount, gains.gain, gains.date FROM gains JOIN trades where gains.trade_id = trades.id and trades.type={};'.format(wType)), columns=['amount', 'gain', 'date'])
+        data['date'] = to_datetime(data['date'].apply(lambda x: x[:7]), format='%Y-%m')
+        data.set_index('date', inplace=True)
         data['coin'] = coin
-        if separate:
-            return data
-        return Series([data['amount'].sum(), (data['amount'] * data['gain']).sum() / data['amount'].sum()], index=['amount', 'avg_gain'], name=coin)
+        return data
 
     # Retorna todas las ganacias
-    def getAllGains(self, separate:bool):
+    def getAllGains(self):
         # Obtenemos todos los trades
-        data = DataFrame(self.read('SELECT gains.amount, gains.gain, trades.type FROM gains JOIN trades where gains.trade_id = trades.id;'), columns=['amount', 'gain', 'type'])
+        data = DataFrame(self.read('SELECT gains.amount, gains.gain, trades.type, gains.date FROM gains JOIN trades where gains.trade_id = trades.id;'), columns=['amount', 'gain', 'type', 'date'])
         data['coin'] = data.apply(lambda x: self.read('SELECT coin FROM wCoin WHERE id=(SELECT initial FROM wTrade WHERE id={});'.format(x['type']))[0][0], axis=1)
-        if separate:
-            return data[['amount', 'gain', 'coin']]
-        return Series([data['amount'].sum(), (data['amount'] * data['gain']).sum() / data['amount'].sum()], index=['amount', 'avg_gain'], name='all')
+        data['date'] = to_datetime(data['date'].apply(lambda x: x[:7]), format='%Y-%m')
+        data.set_index('date', inplace=True)
+        return data[['amount', 'gain', 'coin']]
+        
         
 
     # Retorna inversiones menos ganancias

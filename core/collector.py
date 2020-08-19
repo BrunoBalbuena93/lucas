@@ -208,6 +208,13 @@ class Thunder():
         return dt.datetime.strptime(c, '%d-%m-%Y')
 
 
+    @staticmethod
+    def ConfigureDate(date:str):
+        if len(date) < 5:
+            # No es una fecha
+            return None
+        temp = date.split('-')
+        return '20{}-{}'.format(temp[1], temp[0]) if len(temp[1]) == 2 else '{}-{}'.format(temp[1], temp[0])
 
 
 if __name__ == "__main__":
