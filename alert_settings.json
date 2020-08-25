@@ -1,5 +1,5 @@
 {
-    "coins": ["btc","eth", "xrp", "gnt", "ltc"],
+    "coins": ["btc","eth", "xrp", "gnt", "ltc", "xlm", "das"],
     "valuation": "all",
     "period": 5,
     "actions": ["buy", "sell"],
@@ -9,28 +9,36 @@
         "eth": {"over": 3, "under": 3},
         "xrp": {"over": 3, "under": 3},
         "gnt": {"over": 3, "under": 4},
-        "ltc": {"over": 3, "under": 4}
+        "ltc": {"over": 3, "under": 4},
+        "xlm": {"over": 3, "under": 4},
+        "das": {"over": 3, "under": 4}
     },
     "dif": {
         "btc": {"over": 4, "under": 4},
         "eth": {"over": 3, "under": 4},
         "xrp": {"over": 6, "under": 5},
         "gnt": {"over": 7.5, "under": 4},
-        "ltc": {"over": 3, "under": 4}
+        "ltc": {"over": 3, "under": 4},
+        "xlm": {"over": 5, "under": 4},
+        "das": {"over": 3, "under": 4}
     },
     "day":{
         "btc": {"over": 4, "under": 4},
         "eth": {"over": 4, "under": 4},
         "xrp": {"over": 3, "under": 3},
         "gnt": {"over": 3, "under": 4},
-        "ltc": {"over": 3, "under": 4}
+        "ltc": {"over": 3, "under": 4},
+        "xlm": {"over": 3, "under": 4},
+        "das": {"over": 3, "under": 4}
     },
     "custom":{
         "btc": {"over": 12500, "under": 1050},
         "eth": {"over": 450, "under": 400},
         "xrp": {"over": 0.32, "under": 0.28},
         "gnt": {"over": 0.08, "under": 0.06},
-        "ltc": {"over": 60, "under": 55}
+        "ltc": {"over": 60, "under": 55},
+        "xlm": {"over": 5, "under": 0},
+        "das": {"over": 100, "under": 4}
     },
     "forecast": 15
 }

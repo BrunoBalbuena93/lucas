@@ -142,7 +142,7 @@ class Alert():
         quickValuate = lambda coin: self.db.retrieveBalance(coin, many=True)[2]
         for kind in msg.index:
             # Tiramos los na
-            data = msg.loc[kind].dropna()
+            data = msg.loc[kind][msg.loc[kind] != 0]
             # Si hay mensaje?
             if len(data) > 0:
                 send = True
