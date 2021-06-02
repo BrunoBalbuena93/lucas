@@ -115,7 +115,7 @@ traitlets==4.3.3
 typed-ast==1.4.1
 ubuntu-drivers-common==0.0.0
 ufw==0.36
-urllib3==1.22
+urllib3==1.26.5
 wcwidth==0.2.3
 webencodings==0.5.1
 widgetsnbextension==3.5.1
